@@ -1,51 +1,109 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class ThirdPersonCamera : MonoBehaviour
 {
-    public Transform target;           // ’Ç]‚·‚é‘ÎÛiPlayerj
-    public float distance = 4.0f;      // ƒvƒŒƒCƒ„[‚©‚ç‚Ì‹——£
-    public float height = 2.0f;        // ƒvƒŒƒCƒ„[‚©‚ç‚Ì‚‚³
-    public float xSpeed = 120.0f;      // ƒ}ƒEƒX¶‰EˆÚ“®‚ÌŠ´“x
-    public float ySpeed = 80.0f;       // ƒ}ƒEƒXã‰ºˆÚ“®‚ÌŠ´“x
+    [Header("è¿½å¾“è¨­å®š")]
+    public Transform target;
+    public float distance = 4.0f;
+    public float height = 2.0f;
+    public float xSpeed = 120.0f;
+    public float ySpeed = 80.0f;
 
-    public float yMinLimit = -20f;     // Œ©‰º‚ë‚·ŒÀŠEiŠp“xj
-    public float yMaxLimit = 80f;      // Œ©ã‚°‚éŒÀŠEiŠp“xj
+    public float yMinLimit = -20f;
+    public float yMaxLimit = 80f;
+
+    [Header("ãƒ­ãƒƒã‚¯ã‚ªãƒ³è¨­å®š")]
+    public KeyCode lockOnKey = KeyCode.Mouse2;
+    public bool isLockedOn = false;
+    public Transform lockOnTarget;
 
     private float x = 0.0f;
     private float y = 0.0f;
 
     void Start()
     {
-        // Šp“x‚Ì‰Šú’l‚ğŒ»İ‚ÌƒJƒƒ‰‚ÌŒü‚«‚©‚çæ“¾
         Vector3 angles = transform.eulerAngles;
         x = angles.y;
         y = angles.x;
 
-        // ƒJ[ƒ\ƒ‹‚ğ‰æ–Ê’†‰›‚ÉƒƒbƒN‚µ‚ÄÁ‚·iESCƒL[‚Å‰ğœ‰Â”\j
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
+
+    void Update()
+    {
+        if (Input.GetKeyDown(lockOnKey) || Input.GetKeyDown(KeyCode.R))
+        {
+            ToggleLockOn();
+        }
+
+        if (isLockedOn && lockOnTarget == null)
+        {
+            isLockedOn = false;
+        }
+
+        if (!isLockedOn)
+        {
+            x += Input.GetAxis("Mouse X") * xSpeed * Time.deltaTime;
+            y -= Input.GetAxis("Mouse Y") * ySpeed * Time.deltaTime;
+            y = Mathf.Clamp(y, yMinLimit, yMaxLimit);
+        }
     }
 
     void LateUpdate()
     {
         if (target == null) return;
 
-        // ƒ}ƒEƒX‚ÌˆÚ“®—Ê‚ğæ“¾‚µ‚Ä‰ñ“]Šp“x‚É‰ÁZ
-        x += Input.GetAxis("Mouse X") * xSpeed * Time.deltaTime;
-        y -= Input.GetAxis("Mouse Y") * ySpeed * Time.deltaTime;
+        if (isLockedOn && lockOnTarget != null)
+        {
+            Vector3 dirToTarget = lockOnTarget.position - target.position;
+            dirToTarget.y = 0;
 
-        // ã‰º‚Ì‰ñ“]Šp“x‚É§ŒÀ‚ğ‚©‚¯‚éi’n–Ê‚ğ“Ë‚«”²‚¯‚½‚è^ã‚ğ’´‚¦‚È‚¢‚æ‚¤‚Éj
-        y = Mathf.Clamp(y, yMinLimit, yMaxLimit);
+            if (dirToTarget != Vector3.zero)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(dirToTarget);
 
-        // ‰ñ“]‚ÆˆÊ’u‚ÌŒvZ
-        Quaternion rotation = Quaternion.Euler(y, x, 0);
-        Vector3 targetPosition = target.position + Vector3.up * height;
-        Vector3 position = targetPosition - (rotation * Vector3.forward * distance);
+                Vector3 position = target.position - (targetRotation * Vector3.forward * distance) + Vector3.up * height;
+                transform.position = Vector3.Lerp(transform.position, position, Time.deltaTime * 10f);
 
-        // ƒJƒƒ‰‚ÌˆÊ’u‚ÆŒü‚«‚ğ“K—p
-        transform.rotation = rotation;
-        transform.position = position;
+                Vector3 lookAtPoint = Vector3.Lerp(target.position + Vector3.up * 1.5f, lockOnTarget.position + Vector3.up * 1.0f, 0.3f);
+                transform.LookAt(lookAtPoint);
+
+                target.rotation = Quaternion.Slerp(target.rotation, targetRotation, Time.deltaTime * 10f);
+
+                Vector3 angles = transform.eulerAngles;
+                x = angles.y;
+                y = angles.x;
+            }
+        }
+        else
+        {
+            Quaternion rotation = Quaternion.Euler(y, x, 0);
+            Vector3 targetPosition = target.position + Vector3.up * height;
+            Vector3 position = targetPosition - (rotation * Vector3.forward * distance);
+
+            transform.rotation = rotation;
+            transform.position = position;
+        }
+    }
+
+    void ToggleLockOn()
+    {
+        if (isLockedOn)
+        {
+            isLockedOn = false;
+            lockOnTarget = null;
+        }
+        else
+        {
+            BossHealth boss = FindObjectOfType<BossHealth>();
+            if (boss != null)
+            {
+                lockOnTarget = boss.transform;
+                isLockedOn = true;
+            }
+        }
     }
 }
