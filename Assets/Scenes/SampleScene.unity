@@ -332,6 +332,8 @@ MonoBehaviour:
   lockOnKey: 325
   isLockedOn: 0
   lockOnTarget: {fileID: 0}
+  lockOnIcon: {fileID: 0}
+  lockOnOffset: {x: 0, y: 0.1, z: 0}
 --- !u!1 &1015255079
 GameObject:
   m_ObjectHideFlags: 0
