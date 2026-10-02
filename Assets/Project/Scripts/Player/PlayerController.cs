@@ -19,8 +19,20 @@ public class PlayerController : MonoBehaviour
     public float attackDamage = 25f;
     public float attackStaminaCost = 20f;
     public float attackRange = 2.0f;
-    public float attackCooldown = 0.5f;
-    private float attackTimer = 0f;
+    [SerializeField] private float attackHitDelay = 0.25f;  // モーション開始から判定までの遅延
+    [SerializeField] private float attackDuration = 0.8f;  // モーション1回あたりの長さ
+    public bool isAttacking = false;                        // 攻撃中フラグ
+
+    // ★コンボ制御用フィールド
+    [Header("コンボ設定")]
+    [SerializeField] private int maxComboStep = 3;        // 最大コンボ数（通常3段攻撃）
+    private int comboStep = 0;                             // 現在のコンボ段階
+    private bool canQueueNextCombo = false;               // 先行入力（連打）の受付ウィンドウ
+    private bool isNextComboQueued = false;               // 次のコンボが予約されているか
+
+    [Header("攻撃範囲の可視化設定")]
+    [SerializeField] private GameObject attackZonePrefab;
+    [SerializeField] private float zoneDisplayTime = 0.2f;
 
     [Header("回避（ローリング）設定")]
     public float rollSpeed = 12f;
@@ -61,10 +73,12 @@ public class PlayerController : MonoBehaviour
 
     private CharacterController controller;
     private Vector3 velocity;
+    private Animator animator;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
+        animator = GetComponentInChildren<Animator>();
 
         currentHealth = maxHealth;
         UpdateHealthUI();
@@ -87,21 +101,13 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (attackTimer > 0f)
-        {
-            attackTimer -= Time.deltaTime;
-        }
-
         bool isGrounded = controller.isGrounded;
         if (isGrounded && velocity.y < 0)
         {
             velocity.y = -2f;
         }
 
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
-        Vector3 dir = new Vector3(h, 0, v).normalized;
-
+        // ローリング中の移動処理
         if (isRolling)
         {
             controller.Move(rollDirection * rollSpeed * Time.deltaTime);
@@ -110,14 +116,45 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // 攻撃（マウス左クリック）
-        if (Input.GetMouseButtonDown(0) && attackTimer <= 0f && currentStamina >= attackStaminaCost)
+        // 攻撃中の重力移動処理
+        if (isAttacking)
         {
-            Attack();
+            if (animator != null)
+            {
+                animator.SetFloat("Speed", 0f);
+            }
+
+            // ★攻撃中にクリックされた場合、先行入力ウィンドウ内なら予約フラグを立てる
+            bool clickingUI = UnityEngine.EventSystems.EventSystem.current != null &&
+                              UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+            if (!clickingUI && Input.GetMouseButtonDown(0) && canQueueNextCombo)
+            {
+                if (currentStamina >= attackStaminaCost)
+                {
+                    isNextComboQueued = true;
+                }
+            }
+
+            velocity.y += gravity * Time.deltaTime;
+            controller.Move(velocity * Time.deltaTime);
+            return;
+        }
+
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+        Vector3 dir = new Vector3(h, 0, v).normalized;
+
+        // 攻撃（マウス左クリック）発動判定
+        bool isClickingUI = UnityEngine.EventSystems.EventSystem.current != null &&
+                            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+
+        if (!isClickingUI && Input.GetMouseButtonDown(0) && currentStamina >= attackStaminaCost && !isAttacking)
+        {
+            StartCoroutine(AttackRoutine());
         }
 
         // 回避（Left Controlキー）
-        if (Input.GetKeyDown(KeyCode.LeftControl) && currentStamina >= rollStaminaCost)
+        if (Input.GetKeyDown(KeyCode.LeftControl) && currentStamina >= rollStaminaCost && !isAttacking)
         {
             StartCoroutine(RollRoutine(dir));
         }
@@ -156,6 +193,20 @@ public class PlayerController : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
 
+        // アニメーションのSpeed値を更新
+        if (animator != null)
+        {
+            if (dir.magnitude >= 0.1f)
+            {
+                float animSpeed = isSprinting ? 1.0f : 0.5f;
+                animator.SetFloat("Speed", animSpeed);
+            }
+            else
+            {
+                animator.SetFloat("Speed", 0f);
+            }
+        }
+
         // ジャンプ（Spaceキー）
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded && currentStamina >= jumpStaminaCost)
         {
@@ -165,7 +216,7 @@ public class PlayerController : MonoBehaviour
         }
 
         // スタミナ自然回復
-        if (!isSprinting && !isRolling)
+        if (!isSprinting && !isRolling && !isAttacking)
         {
             if (regenTimer > 0f)
             {
@@ -224,17 +275,87 @@ public class PlayerController : MonoBehaviour
         isInvincible = false;
     }
 
-    private void Attack()
+    // ★変更: コンボ対応の攻撃ルーチン
+    private IEnumerator AttackRoutine()
     {
-        currentStamina -= attackStaminaCost;
-        regenTimer = regenDelay;
-        attackTimer = attackCooldown;
+        isAttacking = true;
+        comboStep = 1;
 
-        Debug.Log("プレイヤーの攻撃！");
+        while (comboStep <= maxComboStep)
+        {
+            // スタミナ消費と自然回復タイマー更新
+            currentStamina -= attackStaminaCost;
+            currentStamina = Mathf.Max(currentStamina, 0f);
+            regenTimer = regenDelay;
 
+            canQueueNextCombo = false;
+            isNextComboQueued = false;
+
+            // アニメーション再生（ComboStep: 1, 2, 3 ...）
+            if (animator != null)
+            {
+                animator.SetInteger("ComboStep", comboStep);
+                animator.SetTrigger("Attack");
+            }
+
+            // 1. 攻撃判定発生までの遅延
+            yield return new WaitForSeconds(attackHitDelay);
+
+            // 2. 攻撃判定生成 ＆ ダメージ処理
+            ExecuteAttackHit();
+
+            // 3. モーションの後半（連打受付時間帯）へ入る
+            canQueueNextCombo = true;
+
+            float remainingTime = attackDuration - attackHitDelay;
+            if (remainingTime > 0f)
+            {
+                yield return new WaitForSeconds(remainingTime);
+            }
+
+            // 受付終了
+            canQueueNextCombo = false;
+
+            // 連打（予約）されていて、かつ最大段数未満なら次の段階へ継続
+            if (isNextComboQueued && comboStep < maxComboStep)
+            {
+                comboStep++;
+            }
+            else
+            {
+                break; // 単発または連打がなければルーチン終了
+            }
+        }
+
+        // コンボ終了処理
+        comboStep = 0;
+        canQueueNextCombo = false;
+        isNextComboQueued = false;
+
+        if (animator != null)
+        {
+            animator.SetInteger("ComboStep", 0);
+        }
+
+        isAttacking = false;
+    }
+
+    // 攻撃判定・処理をまとめたヘルパーメソッド
+    private void ExecuteAttackHit()
+    {
         Vector3 attackCenter = transform.position + transform.forward * (attackRange * 0.5f);
-        Collider[] hitColliders = Physics.OverlapSphere(attackCenter, attackRange * 0.5f);
 
+        if (attackZonePrefab != null)
+        {
+            Vector3 zonePos = attackCenter;
+            zonePos.y = 0.05f;
+
+            GameObject zone = Instantiate(attackZonePrefab, zonePos, Quaternion.Euler(90f, transform.eulerAngles.y, 0f));
+            zone.transform.localScale = new Vector3(attackRange, attackRange, 1f);
+            Destroy(zone, zoneDisplayTime);
+        }
+
+        Collider[] hitColliders = Physics.OverlapSphere(attackCenter, attackRange * 0.5f);
         foreach (var hitCollider in hitColliders)
         {
             BossHealth bossHealth = hitCollider.GetComponent<BossHealth>();
@@ -262,8 +383,6 @@ public class PlayerController : MonoBehaviour
 
             UpdateHealthUI();
             UpdateEstusUI();
-
-            Debug.Log("エスト瓶を使用！ HPが " + healAmount + " 回復。（残り: " + currentEstusCount + "）");
         }
     }
 
@@ -271,7 +390,6 @@ public class PlayerController : MonoBehaviour
     {
         if (isInvincible)
         {
-            Debug.Log("ローリング回避！ (無敵時間中)");
             return;
         }
 
@@ -304,6 +422,12 @@ public class PlayerController : MonoBehaviour
 
     private void Die()
     {
-        Debug.Log("プレイヤー死亡");
+        this.enabled = false;
+
+        StageManager stageManager = FindObjectOfType<StageManager>();
+        if (stageManager != null)
+        {
+            stageManager.OnPlayerDied();
+        }
     }
 }

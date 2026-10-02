@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 724329655955777795}
   - component: {fileID: 5309192541447571305}
   - component: {fileID: 7807759248854715153}
+  - component: {fileID: -9036651909215111486}
   m_Layer: 0
   m_Name: Boss
   m_TagString: Untagged
@@ -142,9 +143,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7bb5d0d05c298994a834ce6f34f6d056, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  attackRange: 2
-  attackDamage: 15
+  canMelee: 0
+  canShoot: 1
+  meleeRange: 2.5
+  meleeDamage: 15
   attackInterval: 1.5
+  bulletPrefab: {fileID: 4799840430381531852, guid: 376475fe1cd687944b85b47a58a32a04, type: 3}
+  firePoint: {fileID: 0}
+  omniBulletCount: 12
 --- !u!114 &7807759248854715153
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -160,3 +166,22 @@ MonoBehaviour:
   maxHealth: 100
   currentHealth: 0
   bossHPSlider: {fileID: 0}
+--- !u!114 &-9036651909215111486
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 734172779227090506}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44fcafe9516d8e748b9f7c4cf6e8cdf4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  redZonePrefab: {fileID: 5250773396805783023, guid: bb1c4dca0403a164fab0249fe616ebdd, type: 3}
+  lightAttackRange: 2.5
+  lightDamage: 15
+  heavyAttackRange: 3
+  heavyDamage: 30
+  spinAttackRange: 3.5
+  spinDamage: 20

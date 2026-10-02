@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ThirdPersonCamera : MonoBehaviour
 {
@@ -18,12 +19,16 @@ public class ThirdPersonCamera : MonoBehaviour
     public KeyCode lockOnKey = KeyCode.Mouse2;
     public bool isLockedOn = false;
     public Transform lockOnTarget;
+    public Image lockOnIcon; // ★ UIのロックオンアイコン参照
+    public Vector3 lockOnOffset = new Vector3(0, 1.0f, 0); // ボスのどの位置（高さ）にアイコンを出すか
 
     private float x = 0.0f;
     private float y = 0.0f;
+    private Camera cam;
 
     void Start()
     {
+        cam = GetComponent<Camera>();
         Vector3 angles = transform.eulerAngles;
         x = angles.y;
         y = angles.x;
@@ -41,7 +46,7 @@ public class ThirdPersonCamera : MonoBehaviour
 
         if (isLockedOn && lockOnTarget == null)
         {
-            isLockedOn = false;
+            ToggleLockOn(); // ターゲットが消えたら解除
         }
 
         if (!isLockedOn)
@@ -50,6 +55,9 @@ public class ThirdPersonCamera : MonoBehaviour
             y -= Input.GetAxis("Mouse Y") * ySpeed * Time.deltaTime;
             y = Mathf.Clamp(y, yMinLimit, yMaxLimit);
         }
+
+        // ★ ロックオンアイコンの追従制御
+        UpdateLockOnIcon();
     }
 
     void LateUpdate()
@@ -95,6 +103,7 @@ public class ThirdPersonCamera : MonoBehaviour
         {
             isLockedOn = false;
             lockOnTarget = null;
+            if (lockOnIcon != null) lockOnIcon.gameObject.SetActive(false);
         }
         else
         {
@@ -103,6 +112,42 @@ public class ThirdPersonCamera : MonoBehaviour
             {
                 lockOnTarget = boss.transform;
                 isLockedOn = true;
+                if (lockOnIcon != null) lockOnIcon.gameObject.SetActive(true);
+            }
+        }
+    }
+
+    // ★ 3D座標を2D画面座標に変換してアイコンを追従させる処理
+    void UpdateLockOnIcon()
+    {
+        if (lockOnIcon == null) return;
+
+        if (isLockedOn && lockOnTarget != null)
+        {
+            if (!lockOnIcon.gameObject.activeSelf)
+            {
+                lockOnIcon.gameObject.SetActive(true);
+            }
+
+            // ボスの位置 + オフセットをスクリーン座標に変換
+            Vector3 targetWorldPos = lockOnTarget.position + lockOnOffset;
+            Vector3 screenPos = cam.WorldToScreenPoint(targetWorldPos);
+
+            // カメラの画面内（前方）にある場合のみ表示
+            if (screenPos.z > 0)
+            {
+                lockOnIcon.transform.position = screenPos;
+            }
+            else
+            {
+                lockOnIcon.gameObject.SetActive(false);
+            }
+        }
+        else
+        {
+            if (lockOnIcon.gameObject.activeSelf)
+            {
+                lockOnIcon.gameObject.SetActive(false);
             }
         }
     }
