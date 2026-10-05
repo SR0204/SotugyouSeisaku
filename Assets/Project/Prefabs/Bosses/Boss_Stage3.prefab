@@ -17,7 +17,7 @@ GameObject:
   - component: {fileID: 7807759248854715153}
   - component: {fileID: -9036651909215111486}
   m_Layer: 0
-  m_Name: Boss
+  m_Name: Boss_Stage3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -143,14 +143,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7bb5d0d05c298994a834ce6f34f6d056, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  canMelee: 0
+  canMelee: 1
   canShoot: 1
+  canAreaAttack: 0
+  canDash: 0
+  canSummon: 0
   meleeRange: 2.5
   meleeDamage: 15
-  attackInterval: 1.5
+  attackInterval: 1
   bulletPrefab: {fileID: 4799840430381531852, guid: 376475fe1cd687944b85b47a58a32a04, type: 3}
   firePoint: {fileID: 0}
   omniBulletCount: 12
+  warningAreaPrefab: {fileID: 0}
+  aoeExplosionPrefab: {fileID: 0}
+  warningDuration: 1.5
+  dashSpeed: 20
+  dashDuration: 0.5
+  minionPrefab: {fileID: 0}
+  minionSpawnPoints: []
 --- !u!114 &7807759248854715153
 MonoBehaviour:
   m_ObjectHideFlags: 0

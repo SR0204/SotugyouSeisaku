@@ -10,21 +10,70 @@ public class BossAI : MonoBehaviour
     private PlayerController playerController;
     private BossProximity bossProximity;
 
-    [Header("ボスのタイプ設定")]
-    [SerializeField] private bool canMelee = true;          // チェックを入れると近接攻撃を候補に含める
-    [SerializeField] private bool canShoot = true;          // チェックを入れると射撃を候補に含める
+    // ==========================================
+    // 1. ボスのタイプ設定 (ON/OFF)
+    // ==========================================
+    [Header("=== 1. 行動フラグ (ON/OFF) ===")]
+    [Tooltip("近接攻撃を行うか")]
+    [SerializeField] private bool canMelee = true;
+    [Tooltip("遠距離射撃を行うか")]
+    [SerializeField] private bool canShoot = true;
+    [Tooltip("範囲予兆攻撃を行うか")]
+    [SerializeField] private bool canAreaAttack = true;
+    [Tooltip("突進攻撃を行うか")]
+    [SerializeField] private bool canDash = true;
+    [Tooltip("雑魚召喚を行うか")]
+    [SerializeField] private bool canSummon = true;
 
-    [Header("ステータス設定")]
-    [SerializeField] private float meleeRange = 2.5f;       // 近接攻撃に入る距離（移動停止判定用）
-    [SerializeField] private float meleeDamage = 15.0f;     // 近接攻撃のデフォルトダメージ
-    [SerializeField] private float attackInterval = 2.0f;   // 行動の間隔（秒）
+    // ==========================================
+    // 2. ステータス・基本設定
+    // ==========================================
+    [Header("=== 2. 基本ステータス ===")]
+    [Tooltip("近接攻撃に入る距離")]
+    [SerializeField] private float meleeRange = 2.5f;
+    [Tooltip("近接攻撃のダメージ")]
+    [SerializeField] private float meleeDamage = 15.0f;
+    [Tooltip("攻撃間隔（秒）")]
+    [SerializeField] private float attackInterval = 2.0f;
 
-    [Header("射撃設定")]
-    [SerializeField] private GameObject bulletPrefab;        // 弾のプレハブ
-    [SerializeField] private Transform firePoint;           // 弾の発射位置
-    [SerializeField] private int omniBulletCount = 12;      // 全方位ショットの弾数
+    // ==========================================
+    // 3. 移動・引き撃ち（逃走）設定
+    // ==========================================
+    [Header("=== 3. 移動・逃走設定 ===")]
+    [Tooltip("この距離内にプレイヤーが来たら逃げる")]
+    [SerializeField] private float keepDistance = 8.0f;
+    [Tooltip("逃げるときのスピード")]
+    [SerializeField] private float fleeSpeed = 3.5f;
+    [Tooltip("通常時の移動スピード")]
+    [SerializeField] private float normalSpeed = 5.0f;
 
+    // ==========================================
+    // 4. 各攻撃の詳細設定
+    // ==========================================
+    [Header("=== 4-1. 射撃攻撃設定 ===")]
+    [SerializeField] private GameObject bulletPrefab;
+    [SerializeField] private Transform firePoint;
+    [Range(4, 36)]
+    [Tooltip("全方位ショットの弾数")]
+    [SerializeField] private int omniBulletCount = 12;
+
+    [Header("=== 4-2. 範囲予兆攻撃設定 ===")]
+    [SerializeField] private GameObject warningAreaPrefab;
+    [SerializeField] private GameObject aoeExplosionPrefab;
+    [Tooltip("予兆が出てから爆発するまでの時間")]
+    [SerializeField] private float warningDuration = 1.5f;
+
+    [Header("=== 4-3. 突進攻撃設定 ===")]
+    [SerializeField] private float dashSpeed = 20.0f;
+    [SerializeField] private float dashDuration = 0.5f;
+
+    [Header("=== 4-4. 雑魚召喚設定 ===")]
+    [SerializeField] private GameObject minionPrefab;
+    [SerializeField] private Transform[] minionSpawnPoints;
+
+    // --- 内部変数 ---
     private float attackTimer = 0f;
+    private bool isPerformingAction = false;
 
     void Start()
     {
@@ -42,7 +91,7 @@ public class BossAI : MonoBehaviour
 
     void Update()
     {
-        if (player == null) return;
+        if (player == null || isPerformingAction) return;
 
         float distance = Vector3.Distance(transform.position, player.position);
 
@@ -53,10 +102,20 @@ public class BossAI : MonoBehaviour
 
         LookAtPlayer();
 
-        // 近接範囲内なら足を止める、離れていれば追従
-        if (distance > meleeRange)
+        // --- 移動・引き撃ち処理 ---
+        if (distance < keepDistance)
+        {
+            Vector3 fleeDirection = (transform.position - player.position).normalized;
+            Vector3 fleeTarget = transform.position + fleeDirection * 3.0f;
+
+            agent.isStopped = false;
+            agent.speed = fleeSpeed;
+            agent.SetDestination(fleeTarget);
+        }
+        else if (distance > meleeRange)
         {
             agent.isStopped = false;
+            agent.speed = normalSpeed;
             agent.SetDestination(player.position);
         }
         else
@@ -64,6 +123,7 @@ public class BossAI : MonoBehaviour
             agent.isStopped = true;
         }
 
+        // --- 攻撃実行 ---
         if (attackTimer <= 0f)
         {
             ChooseAction();
@@ -71,18 +131,12 @@ public class BossAI : MonoBehaviour
         }
     }
 
-    // 利用可能な全攻撃（近接・各種射撃）から完全ランダムで選んで実行
     private void ChooseAction()
     {
         List<int> availableActions = new List<int>();
 
-        // 近接攻撃が許可されていれば候補に追加 (ID: 0)
-        if (canMelee)
-        {
-            availableActions.Add(0);
-        }
+        if (canMelee) availableActions.Add(0);
 
-        // 射撃が許可されていれば各種射撃パターンを候補に追加 (ID: 1:通常, 2:3way, 3:全方位)
         if (canShoot)
         {
             availableActions.Add(1);
@@ -90,65 +144,114 @@ public class BossAI : MonoBehaviour
             availableActions.Add(3);
         }
 
-        // 実行可能な行動がない場合は処理を抜ける
+        if (canAreaAttack && warningAreaPrefab != null) availableActions.Add(4);
+        if (canDash) availableActions.Add(5);
+        if (canSummon && minionPrefab != null) availableActions.Add(6);
+
         if (availableActions.Count == 0) return;
 
-        // 候補の中からランダムで1つ選択
         int selectedAction = availableActions[Random.Range(0, availableActions.Count)];
 
         switch (selectedAction)
         {
-            case 0:
-                MeleeAttack();
-                break;
-            case 1:
-                SingleShot();
-                break;
-            case 2:
-                ThreeWayShot();
-                break;
-            case 3:
-                OmniShot();
-                break;
+            case 0: MeleeAttack(); break;
+            case 1: SingleShot(); break;
+            case 2: ThreeWayShot(); break;
+            case 3: OmniShot(); break;
+            case 4: StartCoroutine(AreaWarningRoutine()); break;
+            case 5: StartCoroutine(DashRoutine()); break;
+            case 6: StartCoroutine(SummonRoutine()); break;
         }
     }
 
-    // 近接攻撃
+    private IEnumerator AreaWarningRoutine()
+    {
+        isPerformingAction = true;
+        if (agent != null) agent.isStopped = true;
+
+        Vector3 targetPos = player.position;
+        targetPos.y = 0.01f;
+
+        GameObject warning = Instantiate(warningAreaPrefab, targetPos, Quaternion.identity);
+        yield return new WaitForSeconds(warningDuration);
+
+        Destroy(warning);
+        if (aoeExplosionPrefab != null)
+        {
+            Instantiate(aoeExplosionPrefab, targetPos, Quaternion.identity);
+        }
+
+        isPerformingAction = false;
+    }
+
+    private IEnumerator DashRoutine()
+    {
+        isPerformingAction = true;
+        if (agent != null) agent.isStopped = true;
+
+        yield return new WaitForSeconds(0.5f);
+
+        Vector3 dashDir = transform.forward;
+        float timer = 0f;
+
+        while (timer < dashDuration)
+        {
+            transform.position += dashDir * dashSpeed * Time.deltaTime;
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        isPerformingAction = false;
+    }
+
+    private IEnumerator SummonRoutine()
+    {
+        isPerformingAction = true;
+        if (agent != null) agent.isStopped = true;
+
+        yield return new WaitForSeconds(0.8f);
+
+        if (minionSpawnPoints != null && minionSpawnPoints.Length > 0)
+        {
+            foreach (var point in minionSpawnPoints)
+            {
+                if (point != null) Instantiate(minionPrefab, point.position, point.rotation);
+            }
+        }
+        else
+        {
+            Instantiate(minionPrefab, transform.position + transform.right * 2f, Quaternion.identity);
+            Instantiate(minionPrefab, transform.position - transform.right * 2f, Quaternion.identity);
+        }
+
+        isPerformingAction = false;
+    }
+
     private void MeleeAttack()
     {
         if (bossProximity != null)
         {
-            // BossProximity に作られたランダム近接技を実行
             bossProximity.PerformRandomMeleeAttack();
         }
         else if (playerController != null)
         {
-            // BossProximityが付いていない場合のバックアップ
             playerController.TakeDamage(meleeDamage);
         }
     }
 
-    // 1. 通常単発射撃
     private void SingleShot()
     {
         if (bulletPrefab == null) return;
-        Debug.Log("ボスの通常射撃！");
-
         Vector3 spawnPos = GetFirePosition();
         Quaternion spawnRot = GetTargetRotation(spawnPos);
-
         Instantiate(bulletPrefab, spawnPos, spawnRot);
     }
 
-    // 2. 3wayショット（正面・左15度・右15度）
     private void ThreeWayShot()
     {
         if (bulletPrefab == null) return;
-        Debug.Log("ボスの3wayショット！");
-
         Vector3 spawnPos = GetFirePosition();
         Quaternion baseRot = GetTargetRotation(spawnPos);
-
         float[] angles = { 0f, -15f, 15f };
 
         foreach (float angle in angles)
@@ -158,12 +261,9 @@ public class BossAI : MonoBehaviour
         }
     }
 
-    // 3. 全方位（360度）ショット
     private void OmniShot()
     {
         if (bulletPrefab == null) return;
-        Debug.Log("ボスの全方位ショット！");
-
         Vector3 spawnPos = GetFirePosition();
         float angleStep = 360f / omniBulletCount;
 

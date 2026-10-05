@@ -23,6 +23,11 @@ public class StageManager : MonoBehaviour
     private GameObject currentRestAreaInstance;
     private GameObject currentPlayerInstance;
     private PlayerController playerCtrl;
+
+    // UI参照用
+    private Slider healthSlider;
+    private Slider staminaSlider;
+    private TextMeshProUGUI estusText;
     private Slider bossHPSlider;
     private GameObject bossSelectPanel;
     private TextMeshProUGUI gameOverText;
@@ -36,10 +41,6 @@ public class StageManager : MonoBehaviour
 
     void InitializeStage()
     {
-        Slider healthSlider = null;
-        Slider staminaSlider = null;
-        TextMeshProUGUI estusText = null;
-
         // 1. UI Canvas を生成
         if (uiCanvasPrefab != null)
         {
@@ -65,7 +66,7 @@ public class StageManager : MonoBehaviour
                 gameOverText.gameObject.SetActive(false);
             }
 
-            // ★ LockOnIcon を探してカメラに渡す
+            // LockOnIcon を探してカメラに渡す
             Transform lockOnIconObj = canvasObj.transform.Find("LockOnIcon");
             if (lockOnIconObj != null && Camera.main != null)
             {
@@ -76,20 +77,26 @@ public class StageManager : MonoBehaviour
                 }
             }
 
-            // ボス選択パネルとボタンの自動紐付け
+            // ★ ボス選択パネル内の全ボタンを自動で登録する（Boss1Button, Boss2Button, Boss3Button...）
             Transform panelObj = canvasObj.transform.Find("BossSelectPanel");
             if (panelObj != null)
             {
                 bossSelectPanel = panelObj.gameObject;
 
-                Transform btn1Obj = panelObj.Find("Boss1Button");
-                if (btn1Obj != null)
+                for (int i = 0; i < bossPrefabs.Length; i++)
                 {
-                    Button btn1 = btn1Obj.GetComponent<Button>();
-                    if (btn1 != null)
+                    int bossIndex = i; // クロージャ用キャプチャ
+                    string buttonName = $"Boss{bossIndex + 1}Button"; // Boss1Button, Boss2Button, Boss3Button
+
+                    Transform btnObj = panelObj.Find(buttonName);
+                    if (btnObj != null)
                     {
-                        btn1.onClick.RemoveAllListeners();
-                        btn1.onClick.AddListener(() => SelectAndStartBoss(0));
+                        Button btn = btnObj.GetComponent<Button>();
+                        if (btn != null)
+                        {
+                            btn.onClick.RemoveAllListeners();
+                            btn.onClick.AddListener(() => SelectAndStartBoss(bossIndex));
+                        }
                     }
                 }
 
@@ -248,18 +255,8 @@ public class StageManager : MonoBehaviour
             gameOverText.gameObject.SetActive(false);
         }
 
-        // プレイヤー再生成＆回復
-        if (playerCtrl != null)
-        {
-            Destroy(currentPlayerInstance);
-        }
-
-        // 再度プレイヤーを生成して初期化
-        Slider hpSlider = playerCtrl != null ? playerCtrl.healthSlider : null;
-        Slider stSlider = playerCtrl != null ? playerCtrl.staminaSlider : null;
-        TextMeshProUGUI estText = playerCtrl != null ? playerCtrl.estusText : null;
-
-        SpawnPlayer(hpSlider, stSlider, estText);
+        // 再度プレイヤーを生成して初期化（メンバ変数のUI参照を渡す）
+        SpawnPlayer(healthSlider, staminaSlider, estusText);
 
         // 休息エリア（ボス選択）に戻す
         ShowRestArea();

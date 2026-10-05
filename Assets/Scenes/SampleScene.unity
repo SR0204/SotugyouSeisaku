@@ -435,8 +435,8 @@ MonoBehaviour:
   playerPrefab: {fileID: 7276806339060704671, guid: 17a54095d25f3384fb05d5b6f61b5580, type: 3}
   bossPrefabs:
   - {fileID: 734172779227090506, guid: a5d6dd8757a6cea43a15168f3cdabe01, type: 3}
-  - {fileID: 734172779227090506, guid: a5d6dd8757a6cea43a15168f3cdabe01, type: 3}
-  - {fileID: 734172779227090506, guid: a5d6dd8757a6cea43a15168f3cdabe01, type: 3}
+  - {fileID: 734172779227090506, guid: bfc9d017a73206a4b95ffbe2fd53cef1, type: 3}
+  - {fileID: 734172779227090506, guid: 68cc612ef16288f47a1b4a8935079a60, type: 3}
   uiCanvasPrefab: {fileID: 6654746298356397330, guid: 9f6b27dd0c5a31547b74b35f15130935, type: 3}
   restAreaPrefab: {fileID: 0}
   arenaPosition: {x: 0, y: -0.5, z: 0}
