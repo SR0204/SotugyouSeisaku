@@ -24,6 +24,8 @@ public class BossAI : MonoBehaviour
     [SerializeField] private bool canDash = true;
     [Tooltip("雑魚召喚を行うか")]
     [SerializeField] private bool canSummon = true;
+    [Tooltip("プレイヤーが近づいたときに逃げるか（距離を取るか）")]
+    [SerializeField] private bool canFlee = false; // デフォルトはOFF（サモンボス等でのみONにする）
 
     // ==========================================
     // 2. ステータス・基本設定
@@ -40,7 +42,7 @@ public class BossAI : MonoBehaviour
     // 3. 移動・引き撃ち（逃走）設定
     // ==========================================
     [Header("=== 3. 移動・逃走設定 ===")]
-    [Tooltip("この距離内にプレイヤーが来たら逃げる")]
+    [Tooltip("この距離内にプレイヤーが来たら逃げる（canFleeがONのときのみ有効）")]
     [SerializeField] private float keepDistance = 8.0f;
     [Tooltip("逃げるときのスピード")]
     [SerializeField] private float fleeSpeed = 3.5f;
@@ -103,7 +105,8 @@ public class BossAI : MonoBehaviour
         LookAtPlayer();
 
         // --- 移動・引き撃ち処理 ---
-        if (distance < keepDistance)
+        // canFlee が ON のときのみ逃走処理を実行
+        if (canFlee && distance < keepDistance)
         {
             Vector3 fleeDirection = (transform.position - player.position).normalized;
             Vector3 fleeTarget = transform.position + fleeDirection * 3.0f;

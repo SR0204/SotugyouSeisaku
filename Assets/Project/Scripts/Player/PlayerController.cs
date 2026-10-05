@@ -47,20 +47,31 @@ public class PlayerController : MonoBehaviour
     // ==========================================
     // 4. 攻撃・コンボ設定
     // ==========================================
+    [System.Serializable]
+    public class ComboSettings
+    {
+        [Tooltip("攻撃開始から当たり判定・エフェクトが出るまでの時間（秒）")]
+        public float hitDelay = 0.2f;
+        [Tooltip("全体モーション時間（秒）")]
+        public float duration = 0.6f;
+        [Tooltip("攻撃の中心となる前方オフセット")]
+        public float attackOffset = 1.2f;
+        [Tooltip("エフェクト発生高さ（0なら足元、1なら腰/胸）")]
+        public float effectOffsetY = 0.05f;
+        [Tooltip("チェックを入れるとエフェクトを地面に水平に配置（90度寝かせる）")]
+        public bool isGroundEffect = true;
+    }
+
     [Header("=== 4. 攻撃・コンボ設定 ===")]
     [Tooltip("1ヒットあたりの攻撃力")]
     public float attackDamage = 25f;
     [Tooltip("攻撃1回あたりの消費スタミナ")]
     public float attackStaminaCost = 20f;
-    [Tooltip("攻撃が届く距離")]
-    public float attackRange = 2.0f;
-    [Tooltip("攻撃モーション開始から当たり判定が出るまでの遅延時間（秒）")]
-    [SerializeField] private float attackHitDelay = 0.25f;
-    [Tooltip("1攻撃あたりの全体モーション時間（秒）")]
-    [SerializeField] private float attackDuration = 0.8f;
-    [Tooltip("最大コンボ段数")]
-    [Range(1, 5)]
-    [SerializeField] private int maxComboStep = 3;
+    [Tooltip("攻撃判定の半径")]
+    public float attackRadius = 1.5f;
+
+    [Tooltip("コンボ毎の個別タイミング設定（1段目, 2段目, 3段目）")]
+    [SerializeField] private ComboSettings[] comboList = new ComboSettings[3];
 
     [Header("--- 攻撃エフェクト設定 ---")]
     [Tooltip("攻撃時に発生させるエフェクトプレハブ")]
@@ -328,7 +339,7 @@ public class PlayerController : MonoBehaviour
         isAttacking = true;
         comboStep = 1;
 
-        while (comboStep <= maxComboStep)
+        while (comboStep <= comboList.Length)
         {
             currentStamina -= attackStaminaCost;
             currentStamina = Mathf.Max(currentStamina, 0f);
@@ -336,6 +347,8 @@ public class PlayerController : MonoBehaviour
 
             canQueueNextCombo = false;
             isNextComboQueued = false;
+
+            ComboSettings currentCombo = comboList[comboStep - 1];
 
             if (animator != null)
             {
@@ -347,13 +360,16 @@ public class PlayerController : MonoBehaviour
                 }
             }
 
-            yield return new WaitForSeconds(attackHitDelay);
+            // コンボごとの発生遅延
+            yield return new WaitForSeconds(currentCombo.hitDelay);
 
-            ExecuteAttackHit();
+            // 攻撃判定とエフェクトの実行
+            ExecuteAttackHit(currentCombo);
 
             canQueueNextCombo = true;
 
-            float remainingTime = attackDuration - attackHitDelay;
+            // 残りモーション時間の待機
+            float remainingTime = currentCombo.duration - currentCombo.hitDelay;
             if (remainingTime > 0f)
             {
                 yield return new WaitForSeconds(remainingTime);
@@ -361,7 +377,7 @@ public class PlayerController : MonoBehaviour
 
             canQueueNextCombo = false;
 
-            if (isNextComboQueued && comboStep < maxComboStep)
+            if (isNextComboQueued && comboStep < comboList.Length)
             {
                 comboStep++;
             }
@@ -385,21 +401,42 @@ public class PlayerController : MonoBehaviour
         isAttacking = false;
     }
 
-    private void ExecuteAttackHit()
+    private void ExecuteAttackHit(ComboSettings combo)
     {
-        Vector3 attackCenter = transform.position + transform.forward * (attackRange * 0.5f);
+        // 攻撃の中心位置
+        Vector3 attackCenter = transform.position + transform.forward * combo.attackOffset;
 
+        // 地面用か空中用かで位置と回転を変える
+        Vector3 zonePos = attackCenter;
+        Quaternion zoneRot;
+
+        if (combo.isGroundEffect)
+        {
+            zonePos.y = transform.position.y + 0.05f; // 床の少し上
+            zoneRot = Quaternion.Euler(90f, transform.eulerAngles.y, 0f); // 床に寝かせる
+        }
+        else
+        {
+            zonePos.y = transform.position.y + combo.effectOffsetY; // 胸や腰の高さ
+            zoneRot = transform.rotation; // プレイヤーの正面に向ける
+        }
+
+        // エフェクト生成
         if (attackZonePrefab != null)
         {
-            Vector3 zonePos = attackCenter;
-            zonePos.y = 0.05f;
+            GameObject zone = Instantiate(attackZonePrefab, zonePos, zoneRot);
 
-            GameObject zone = Instantiate(attackZonePrefab, zonePos, Quaternion.Euler(90f, transform.eulerAngles.y, 0f));
-            zone.transform.localScale = new Vector3(attackRange, attackRange, 1f);
+            // 床用エフェクトの場合のみスケール調整を適用
+            if (combo.isGroundEffect)
+            {
+                zone.transform.localScale = new Vector3(attackRadius * 2f, attackRadius * 2f, 1f);
+            }
+
             Destroy(zone, zoneDisplayTime);
         }
 
-        Collider[] hitColliders = Physics.OverlapSphere(attackCenter, attackRange * 0.5f);
+        // 当たり判定（球体）
+        Collider[] hitColliders = Physics.OverlapSphere(attackCenter, attackRadius);
         foreach (var hitCollider in hitColliders)
         {
             BossHealth bossHealth = hitCollider.GetComponent<BossHealth>();
@@ -419,7 +456,12 @@ public class PlayerController : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position + transform.forward * (attackRange * 0.5f), attackRange * 0.5f);
+        if (comboList != null && comboList.Length > 0)
+        {
+            Vector3 attackCenter = transform.position + transform.forward * comboList[0].attackOffset;
+            attackCenter.y += comboList[0].effectOffsetY;
+            Gizmos.DrawWireSphere(attackCenter, attackRadius);
+        }
     }
 
     private void UseEstus()

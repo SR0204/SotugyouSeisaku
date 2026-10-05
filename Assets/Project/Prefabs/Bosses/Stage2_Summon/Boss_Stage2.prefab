@@ -143,14 +143,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7bb5d0d05c298994a834ce6f34f6d056, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  canMelee: 0
-  canShoot: 0
-  canAreaAttack: 0
-  canDash: 0
-  canSummon: 1
+  canMelee: 1
+  canShoot: 1
+  canAreaAttack: 1
+  canDash: 1
+  canSummon: 0
+  canFlee: 0
   meleeRange: 5
   meleeDamage: 15
   attackInterval: 3
+  keepDistance: 8
+  fleeSpeed: 3.5
+  normalSpeed: 5
   bulletPrefab: {fileID: 4799840430381531852, guid: 376475fe1cd687944b85b47a58a32a04, type: 3}
   firePoint: {fileID: 0}
   omniBulletCount: 16

@@ -153,35 +153,48 @@ MonoBehaviour:
   rotationSpeed: 10
   maxHealth: 100
   currentHealth: 0
-  attackDamage: 10
-  attackStaminaCost: 20
-  attackRange: 2
-  attackHitDelay: 0.25
-  attackDuration: 0.8
-  isAttacking: 0
-  maxComboStep: 3
-  attackZonePrefab: {fileID: 5250773396805783023, guid: bb1c4dca0403a164fab0249fe616ebdd, type: 3}
-  zoneDisplayTime: 0.2
-  rollSpeed: 12
-  rollDuration: 0.5
-  invincibleDuration: 0.3
-  rollStaminaCost: 20
-  isRolling: 0
-  isInvincible: 0
   maxEstusCount: 3
   currentEstusCount: 0
   healAmount: 40
-  estusText: {fileID: 0}
   maxStamina: 100
   currentStamina: 0
   staminaDrainRate: 25
   staminaRegenRate: 15
   regenDelay: 1
+  attackDamage: 10
+  attackStaminaCost: 20
+  attackRadius: 1.5
+  comboList:
+  - hitDelay: 0.2
+    duration: 0.6
+    attackOffset: 1.2
+    effectOffsetY: 0
+    isGroundEffect: 1
+  - hitDelay: 0.2
+    duration: 0.6
+    attackOffset: 1.2
+    effectOffsetY: 0
+    isGroundEffect: 1
+  - hitDelay: 0.2
+    duration: 0.6
+    attackOffset: 1.2
+    effectOffsetY: 0
+    isGroundEffect: 1
+  attackZonePrefab: {fileID: 5250773396805783023, guid: bb1c4dca0403a164fab0249fe616ebdd, type: 3}
+  zoneDisplayTime: 0.2
+  isAttacking: 0
+  rollSpeed: 12
+  rollDuration: 0.5
+  invincibleDuration: 0.3
+  rollStaminaCost: 20
   jumpHeight: 1.5
   jumpStaminaCost: 20
   gravity: -19.62
+  isRolling: 0
+  isInvincible: 0
   healthSlider: {fileID: 0}
   staminaSlider: {fileID: 0}
+  estusText: {fileID: 0}
   cameraTransform: {fileID: 0}
 --- !u!1001 &1019932946040108701
 PrefabInstance:
