@@ -50,16 +50,12 @@ public class PlayerController : MonoBehaviour
     [System.Serializable]
     public class ComboSettings
     {
-        [Tooltip("攻撃開始から当たり判定・エフェクトが出るまでの時間（秒）")]
-        public float hitDelay = 0.2f;
+        [Tooltip("攻撃開始から当たり判定が発生するまでの前隙（秒）")]
+        public float hitDelay = 0.1f;
         [Tooltip("全体モーション時間（秒）")]
         public float duration = 0.6f;
         [Tooltip("攻撃の中心となる前方オフセット")]
         public float attackOffset = 1.2f;
-        [Tooltip("エフェクト発生高さ（0なら足元、1なら腰/胸）")]
-        public float effectOffsetY = 0.05f;
-        [Tooltip("チェックを入れるとエフェクトを地面に水平に配置（90度寝かせる）")]
-        public bool isGroundEffect = true;
     }
 
     [Header("=== 4. 攻撃・コンボ設定 ===")]
@@ -72,12 +68,6 @@ public class PlayerController : MonoBehaviour
 
     [Tooltip("コンボ毎の個別タイミング設定（1段目, 2段目, 3段目）")]
     [SerializeField] private ComboSettings[] comboList = new ComboSettings[3];
-
-    [Header("--- 攻撃エフェクト設定 ---")]
-    [Tooltip("攻撃時に発生させるエフェクトプレハブ")]
-    [SerializeField] private GameObject attackZonePrefab;
-    [Tooltip("エフェクトの表示時間（秒）")]
-    [SerializeField] private float zoneDisplayTime = 0.2f;
 
     [HideInInspector] public bool isAttacking = false;
     private int comboStep = 0;
@@ -360,19 +350,27 @@ public class PlayerController : MonoBehaviour
                 }
             }
 
-            // コンボごとの発生遅延
-            yield return new WaitForSeconds(currentCombo.hitDelay);
-
-            // 攻撃判定とエフェクトの実行
-            ExecuteAttackHit(currentCombo);
+            // 振りかぶり時間（hitDelay）の待機
+            if (currentCombo.hitDelay > 0f)
+            {
+                yield return new WaitForSeconds(currentCombo.hitDelay);
+            }
 
             canQueueNextCombo = true;
 
-            // 残りモーション時間の待機
-            float remainingTime = currentCombo.duration - currentCombo.hitDelay;
-            if (remainingTime > 0f)
+            // --- 判定持続処理（エフェクト生成なし） ---
+            float activeDuration = Mathf.Max(0.01f, currentCombo.duration - currentCombo.hitDelay);
+            float timer = 0f;
+            HashSet<Collider> hitList = new HashSet<Collider>(); // 多段ヒット防止
+
+            while (timer < activeDuration)
             {
-                yield return new WaitForSeconds(remainingTime);
+                timer += Time.deltaTime;
+
+                // 毎フレーム不可視の判定領域でヒットチェックを行う
+                CheckHitContinuous(currentCombo, hitList);
+
+                yield return null;
             }
 
             canQueueNextCombo = false;
@@ -401,54 +399,34 @@ public class PlayerController : MonoBehaviour
         isAttacking = false;
     }
 
-    private void ExecuteAttackHit(ComboSettings combo)
+    private void CheckHitContinuous(ComboSettings combo, HashSet<Collider> hitList)
     {
-        // 攻撃の中心位置
         Vector3 attackCenter = transform.position + transform.forward * combo.attackOffset;
-
-        // 地面用か空中用かで位置と回転を変える
-        Vector3 zonePos = attackCenter;
-        Quaternion zoneRot;
-
-        if (combo.isGroundEffect)
-        {
-            zonePos.y = transform.position.y + 0.05f; // 床の少し上
-            zoneRot = Quaternion.Euler(90f, transform.eulerAngles.y, 0f); // 床に寝かせる
-        }
-        else
-        {
-            zonePos.y = transform.position.y + combo.effectOffsetY; // 胸や腰の高さ
-            zoneRot = transform.rotation; // プレイヤーの正面に向ける
-        }
-
-        // エフェクト生成
-        if (attackZonePrefab != null)
-        {
-            GameObject zone = Instantiate(attackZonePrefab, zonePos, zoneRot);
-
-            // 床用エフェクトの場合のみスケール調整を適用
-            if (combo.isGroundEffect)
-            {
-                zone.transform.localScale = new Vector3(attackRadius * 2f, attackRadius * 2f, 1f);
-            }
-
-            Destroy(zone, zoneDisplayTime);
-        }
-
-        // 当たり判定（球体）
         Collider[] hitColliders = Physics.OverlapSphere(attackCenter, attackRadius);
+
         foreach (var hitCollider in hitColliders)
         {
+            if (hitList.Contains(hitCollider)) continue;
+
+            bool damaged = false;
+
             BossHealth bossHealth = hitCollider.GetComponent<BossHealth>();
             if (bossHealth != null)
             {
                 bossHealth.TakeDamage(attackDamage);
+                damaged = true;
             }
 
             BossMinionAI minion = hitCollider.GetComponent<BossMinionAI>();
             if (minion != null)
             {
                 minion.TakeDamage(999f);
+                damaged = true;
+            }
+
+            if (damaged)
+            {
+                hitList.Add(hitCollider);
             }
         }
     }
@@ -459,7 +437,6 @@ public class PlayerController : MonoBehaviour
         if (comboList != null && comboList.Length > 0)
         {
             Vector3 attackCenter = transform.position + transform.forward * comboList[0].attackOffset;
-            attackCenter.y += comboList[0].effectOffsetY;
             Gizmos.DrawWireSphere(attackCenter, attackRadius);
         }
     }

@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -11,69 +11,69 @@ public class BossAI : MonoBehaviour
     private BossProximity bossProximity;
 
     // ==========================================
-    // 1. ƒ{ƒX‚Ìƒ^ƒCƒvİ’è (ON/OFF)
+    // 1. ãƒœã‚¹ã®ã‚¿ã‚¤ãƒ—è¨­å®š (ON/OFF)
     // ==========================================
-    [Header("=== 1. s“®ƒtƒ‰ƒO (ON/OFF) ===")]
-    [Tooltip("‹ßÚUŒ‚‚ğs‚¤‚©")]
+    [Header("=== 1. è¡Œå‹•ãƒ•ãƒ©ã‚° (ON/OFF) ===")]
+    [Tooltip("è¿‘æ¥æ”»æ’ƒã‚’è¡Œã†ã‹")]
     [SerializeField] private bool canMelee = true;
-    [Tooltip("‰“‹——£ËŒ‚‚ğs‚¤‚©")]
+    [Tooltip("é è·é›¢å°„æ’ƒã‚’è¡Œã†ã‹")]
     [SerializeField] private bool canShoot = true;
-    [Tooltip("”ÍˆÍ—\’›UŒ‚‚ğs‚¤‚©")]
+    [Tooltip("ç¯„å›²äºˆå…†æ”»æ’ƒã‚’è¡Œã†ã‹")]
     [SerializeField] private bool canAreaAttack = true;
-    [Tooltip("“ËiUŒ‚‚ğs‚¤‚©")]
+    [Tooltip("çªé€²æ”»æ’ƒã‚’è¡Œã†ã‹")]
     [SerializeField] private bool canDash = true;
-    [Tooltip("G‹›¢Š«‚ğs‚¤‚©")]
+    [Tooltip("é›‘é­šå¬å–šã‚’è¡Œã†ã‹")]
     [SerializeField] private bool canSummon = true;
-    [Tooltip("ƒvƒŒƒCƒ„[‚ª‹ß‚Ã‚¢‚½‚Æ‚«‚É“¦‚°‚é‚©i‹——£‚ğæ‚é‚©j")]
-    [SerializeField] private bool canFlee = false; // ƒfƒtƒHƒ‹ƒg‚ÍOFFiƒTƒ‚ƒ“ƒ{ƒX“™‚Å‚Ì‚İON‚É‚·‚éj
+    [Tooltip("ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒè¿‘ã¥ã„ãŸã¨ãã«é€ƒã’ã‚‹ã‹ï¼ˆè·é›¢ã‚’å–ã‚‹ã‹ï¼‰")]
+    [SerializeField] private bool canFlee = false; // ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã¯OFFï¼ˆã‚µãƒ¢ãƒ³ãƒœã‚¹ç­‰ã§ã®ã¿ONã«ã™ã‚‹ï¼‰
 
     // ==========================================
-    // 2. ƒXƒe[ƒ^ƒXEŠî–{İ’è
+    // 2. ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ãƒ»åŸºæœ¬è¨­å®š
     // ==========================================
-    [Header("=== 2. Šî–{ƒXƒe[ƒ^ƒX ===")]
-    [Tooltip("‹ßÚUŒ‚‚É“ü‚é‹——£")]
+    [Header("=== 2. åŸºæœ¬ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ ===")]
+    [Tooltip("è¿‘æ¥æ”»æ’ƒã«å…¥ã‚‹è·é›¢")]
     [SerializeField] private float meleeRange = 2.5f;
-    [Tooltip("‹ßÚUŒ‚‚Ìƒ_ƒ[ƒW")]
+    [Tooltip("è¿‘æ¥æ”»æ’ƒã®ãƒ€ãƒ¡ãƒ¼ã‚¸")]
     [SerializeField] private float meleeDamage = 15.0f;
-    [Tooltip("UŒ‚ŠÔŠui•bj")]
+    [Tooltip("æ”»æ’ƒé–“éš”ï¼ˆç§’ï¼‰")]
     [SerializeField] private float attackInterval = 2.0f;
 
     // ==========================================
-    // 3. ˆÚ“®Eˆø‚«Œ‚‚¿i“¦‘–jİ’è
+    // 3. ç§»å‹•ãƒ»å¼•ãæ’ƒã¡ï¼ˆé€ƒèµ°ï¼‰è¨­å®š
     // ==========================================
-    [Header("=== 3. ˆÚ“®E“¦‘–İ’è ===")]
-    [Tooltip("‚±‚Ì‹——£“à‚ÉƒvƒŒƒCƒ„[‚ª—ˆ‚½‚ç“¦‚°‚éicanFlee‚ªON‚Ì‚Æ‚«‚Ì‚İ—LŒøj")]
+    [Header("=== 3. ç§»å‹•ãƒ»é€ƒèµ°è¨­å®š ===")]
+    [Tooltip("ã“ã®è·é›¢å†…ã«ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒæ¥ãŸã‚‰é€ƒã’ã‚‹ï¼ˆcanFleeãŒONã®ã¨ãã®ã¿æœ‰åŠ¹ï¼‰")]
     [SerializeField] private float keepDistance = 8.0f;
-    [Tooltip("“¦‚°‚é‚Æ‚«‚ÌƒXƒs[ƒh")]
+    [Tooltip("é€ƒã’ã‚‹ã¨ãã®ã‚¹ãƒ”ãƒ¼ãƒ‰")]
     [SerializeField] private float fleeSpeed = 3.5f;
-    [Tooltip("’Êí‚ÌˆÚ“®ƒXƒs[ƒh")]
+    [Tooltip("é€šå¸¸æ™‚ã®ç§»å‹•ã‚¹ãƒ”ãƒ¼ãƒ‰")]
     [SerializeField] private float normalSpeed = 5.0f;
 
     // ==========================================
-    // 4. ŠeUŒ‚‚ÌÚ×İ’è
+    // 4. å„æ”»æ’ƒã®è©³ç´°è¨­å®š
     // ==========================================
-    [Header("=== 4-1. ËŒ‚UŒ‚İ’è ===")]
+    [Header("=== 4-1. å°„æ’ƒæ”»æ’ƒè¨­å®š ===")]
     [SerializeField] private GameObject bulletPrefab;
     [SerializeField] private Transform firePoint;
     [Range(4, 36)]
-    [Tooltip("‘S•ûˆÊƒVƒ‡ƒbƒg‚Ì’e”")]
+    [Tooltip("å…¨æ–¹ä½ã‚·ãƒ§ãƒƒãƒˆã®å¼¾æ•°")]
     [SerializeField] private int omniBulletCount = 12;
 
-    [Header("=== 4-2. ”ÍˆÍ—\’›UŒ‚İ’è ===")]
+    [Header("=== 4-2. ç¯„å›²äºˆå…†æ”»æ’ƒè¨­å®š ===")]
     [SerializeField] private GameObject warningAreaPrefab;
     [SerializeField] private GameObject aoeExplosionPrefab;
-    [Tooltip("—\’›‚ªo‚Ä‚©‚ç”š”­‚·‚é‚Ü‚Å‚ÌŠÔ")]
+    [Tooltip("äºˆå…†ãŒå‡ºã¦ã‹ã‚‰çˆ†ç™ºã™ã‚‹ã¾ã§ã®æ™‚é–“")]
     [SerializeField] private float warningDuration = 1.5f;
 
-    [Header("=== 4-3. “ËiUŒ‚İ’è ===")]
+    [Header("=== 4-3. çªé€²æ”»æ’ƒè¨­å®š ===")]
     [SerializeField] private float dashSpeed = 20.0f;
     [SerializeField] private float dashDuration = 0.5f;
 
-    [Header("=== 4-4. G‹›¢Š«İ’è ===")]
+    [Header("=== 4-4. é›‘é­šå¬å–šè¨­å®š ===")]
     [SerializeField] private GameObject minionPrefab;
     [SerializeField] private Transform[] minionSpawnPoints;
 
-    // --- “à•”•Ï” ---
+    // --- å†…éƒ¨å¤‰æ•° ---
     private float attackTimer = 0f;
     private bool isPerformingAction = false;
 
@@ -104,8 +104,8 @@ public class BossAI : MonoBehaviour
 
         LookAtPlayer();
 
-        // --- ˆÚ“®Eˆø‚«Œ‚‚¿ˆ— ---
-        // canFlee ‚ª ON ‚Ì‚Æ‚«‚Ì‚İ“¦‘–ˆ—‚ğÀs
+        // --- ç§»å‹•ãƒ»å¼•ãæ’ƒã¡å‡¦ç† ---
+        // canFlee ãŒ ON ã®ã¨ãã®ã¿é€ƒèµ°å‡¦ç†ã‚’å®Ÿè¡Œ
         if (canFlee && distance < keepDistance)
         {
             Vector3 fleeDirection = (transform.position - player.position).normalized;
@@ -126,7 +126,7 @@ public class BossAI : MonoBehaviour
             agent.isStopped = true;
         }
 
-        // --- UŒ‚Às ---
+        // --- æ”»æ’ƒå®Ÿè¡Œ ---
         if (attackTimer <= 0f)
         {
             ChooseAction();
