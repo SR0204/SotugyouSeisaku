@@ -13,10 +13,12 @@ GameObject:
   - component: {fileID: 5206459469536865838}
   - component: {fileID: 2467807653726338743}
   - component: {fileID: -3952822478521644343}
-  - component: {fileID: -7818995955414459038}
+  - component: {fileID: 1199540340344648531}
+  - component: {fileID: 852587976953584951}
+  - component: {fileID: 3626083392132261664}
   m_Layer: 0
-  m_Name: Player
-  m_TagString: Player
+  m_Name: Boss_Shoot
+  m_TagString: Boss
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -136,7 +138,7 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &-7818995955414459038
+--- !u!114 &1199540340344648531
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -145,49 +147,115 @@ MonoBehaviour:
   m_GameObject: {fileID: 7276806339060704671}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21a8ab3134276664eb6b4461f6404890, type: 3}
+  m_Script: {fileID: 11500000, guid: 7bb5d0d05c298994a834ce6f34f6d056, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  walkSpeed: 6
-  sprintSpeed: 15
-  rotationSpeed: 15
+  canMelee: 0
+  canShoot: 1
+  canAreaAttack: 0
+  canDash: 0
+  canSummon: 0
+  canFlee: 1
+  meleeRange: 2.5
+  meleeDamage: 15
+  attackInterval: 2
+  keepDistance: 8
+  fleeSpeed: 3.5
+  normalSpeed: 5
+  bulletPrefab: {fileID: 4799840430381531852, guid: 376475fe1cd687944b85b47a58a32a04, type: 3}
+  firePoint: {fileID: 0}
+  omniBulletCount: 12
+  delayShot:
+    name: "\u7DE9\u6025\u30C7\u30A3\u30EC\u30A4\u6483\u3061"
+    enabled: 1
+    shotCount: 4
+    baseInterval: 0.25
+    delayMultiplier: 3
+    damage: 25
+  crossFire:
+    name: "\u5341\u5B57\u30FBX\u5B57\u30AF\u30ED\u30B9\u30D5\u30A1\u30A4\u30A2"
+    enabled: 1
+    waveInterval: 0.7
+    damage: 30
+  homingShot:
+    name: "\u6642\u9593\u5DEE\u30DB\u30FC\u30DF\u30F3\u30B0\u5F3E"
+    enabled: 1
+    bulletCount: 3
+    speed: 7
+    homingSpeed: 2.5
+    damage: 20
+  warningAreaPrefab: {fileID: 3858580308708274489, guid: f337b9191d0a0804699c1e294a888504, type: 3}
+  aoeExplosionPrefab: {fileID: 2108777081266653257, guid: 4538107e61fb1fc42b275244a99ea448, type: 3}
+  warningDuration: 1.5
+  dashSpeed: 20
+  dashDuration: 0.5
+  minionPrefab: {fileID: 0}
+  minionSpawnPoints: []
+  laserPrefab: {fileID: 7558654996520765253, guid: 3bb75ebfc064cc44ea0a8890c48d33c3, type: 3}
+  omniLaser:
+    name: "360\u5EA6\u306A\u304E\u6255\u3044\u30EC\u30FC\u30B6\u30FC"
+    enabled: 1
+    chargeTime: 1.8
+    duration: 4.5
+    radius: 1
+    distance: 100
+    damage: 100
+    sweepAngle: 360
+  straightGigaLaser:
+    name: "\u4E00\u76F4\u7DDA\u6975\u592A\u30EC\u30FC\u30B6\u30FC"
+    enabled: 1
+    chargeTime: 1.5
+    duration: 2
+    radius: 2.5
+    distance: 100
+    damage: 70
+    sweepAngle: 0
+  frontSweepLaser:
+    name: "\u6B63\u976245\u5EA6\u306A\u304E\u6255\u3044\u30EC\u30FC\u30B6\u30FC"
+    enabled: 1
+    chargeTime: 0.4
+    duration: 0.7
+    radius: 1.2
+    distance: 100
+    damage: 20
+    sweepAngle: 45
+--- !u!114 &852587976953584951
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7276806339060704671}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29835d9e612ee504ba89418964791e7a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
   maxHealth: 100
   currentHealth: 0
-  maxEstusCount: 5
-  currentEstusCount: 0
-  healAmount: 40
-  maxStamina: 150
-  currentStamina: 0
-  staminaDrainRate: 5
-  staminaRegenRate: 20
-  regenDelay: 1
-  attackDamage: 10
-  attackStaminaCost: 20
-  attackRadius: 1.5
-  comboList:
-  - hitDelay: 0.2
-    duration: 0.6
-    attackOffset: 1.2
-  - hitDelay: 0.2
-    duration: 0.6
-    attackOffset: 1.2
-  - hitDelay: 0.2
-    duration: 0.6
-    attackOffset: 1.2
-  isAttacking: 0
-  rollSpeed: 12
-  rollDuration: 0.5
-  invincibleDuration: 0.3
-  rollStaminaCost: 20
-  jumpHeight: 1.5
-  jumpStaminaCost: 20
-  gravity: -19.62
-  isRolling: 0
-  isInvincible: 0
-  healthSlider: {fileID: 0}
-  staminaSlider: {fileID: 0}
-  estusText: {fileID: 0}
-  cameraTransform: {fileID: 0}
+  bossHPSlider: {fileID: 0}
+--- !u!195 &3626083392132261664
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7276806339060704671}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.5
+  m_Speed: 3.5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 2
+  m_BaseOffset: 1
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
 --- !u!1001 &1019932946040108701
 PrefabInstance:
   m_ObjectHideFlags: 0

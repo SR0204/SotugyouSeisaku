@@ -9,44 +9,80 @@ public class BossAI : MonoBehaviour
     private Transform player;
     private PlayerController playerController;
     private BossProximity bossProximity;
+    private Animator animator;
+
+    [System.Serializable]
+    public struct LaserSettings
+    {
+        public string name;
+        public bool enabled;
+        public float chargeTime;
+        public float duration;
+        public float radius;
+        public float distance;
+        public float damage;
+        public float sweepAngle;
+    }
+
+    // ★ ディレイ撃ち設定構造体
+    [System.Serializable]
+    public struct DelayShotSettings
+    {
+        public string name;
+        public bool enabled;
+        public int shotCount;             // 連射数 (例: 4)
+        public float baseInterval;        // 基本の発射間隔 (例: 0.3)
+        public float delayMultiplier;    // ディレイ倍率 (例: 2.0 で一瞬タメが入る)
+        public float damage;
+    }
+
+    // ★ クロスファイア設定構造体
+    [System.Serializable]
+    public struct CrossFireSettings
+    {
+        public string name;
+        public bool enabled;
+        public float waveInterval;        // +字から×字までの時間差
+        public float damage;
+    }
+
+    // ★ ホーミング弾設定構造体
+    [System.Serializable]
+    public struct HomingSettings
+    {
+        public string name;
+        public bool enabled;
+        public int bulletCount;           // 発射数
+        public float speed;               // 弾速
+        public float homingSpeed;         // 追従性能 (回転速度)
+        public float damage;
+    }
 
     // ==========================================
     // 1. ボスのタイプ設定 (ON/OFF)
     // ==========================================
     [Header("=== 1. 行動フラグ (ON/OFF) ===")]
-    [Tooltip("近接攻撃を行うか")]
     [SerializeField] private bool canMelee = true;
-    [Tooltip("遠距離射撃を行うか")]
     [SerializeField] private bool canShoot = true;
-    [Tooltip("範囲予兆攻撃を行うか")]
     [SerializeField] private bool canAreaAttack = true;
-    [Tooltip("突進攻撃を行うか")]
     [SerializeField] private bool canDash = true;
-    [Tooltip("雑魚召喚を行うか")]
     [SerializeField] private bool canSummon = true;
-    [Tooltip("プレイヤーが近づいたときに逃げるか（距離を取るか）")]
-    [SerializeField] private bool canFlee = false; // デフォルトはOFF（サモンボス等でのみONにする）
+    [SerializeField] private bool canFlee = false;
 
     // ==========================================
-    // 2. ステータス・基本設定
+    // 2. 基本ステータス
     // ==========================================
     [Header("=== 2. 基本ステータス ===")]
-    [Tooltip("近接攻撃に入る距離")]
-    [SerializeField] private float meleeRange = 2.5f;
-    [Tooltip("近接攻撃のダメージ")]
+    [SerializeField] private float meleeRange = 3.0f;
     [SerializeField] private float meleeDamage = 15.0f;
-    [Tooltip("攻撃間隔（秒）")]
-    [SerializeField] private float attackInterval = 2.0f;
+    [SerializeField] private float attackInterval = 0.2f;
 
     // ==========================================
-    // 3. 移動・引き撃ち（逃走）設定
+    // 3. 移動・逃走設定
     // ==========================================
     [Header("=== 3. 移動・逃走設定 ===")]
-    [Tooltip("この距離内にプレイヤーが来たら逃げる（canFleeがONのときのみ有効）")]
     [SerializeField] private float keepDistance = 8.0f;
-    [Tooltip("逃げるときのスピード")]
     [SerializeField] private float fleeSpeed = 3.5f;
-    [Tooltip("通常時の移動スピード")]
     [SerializeField] private float normalSpeed = 5.0f;
 
     // ==========================================
@@ -56,30 +92,102 @@ public class BossAI : MonoBehaviour
     [SerializeField] private GameObject bulletPrefab;
     [SerializeField] private Transform firePoint;
     [Range(4, 36)]
-    [Tooltip("全方位ショットの弾数")]
     [SerializeField] private int omniBulletCount = 12;
+
+    [Header("--- 新規弾幕パターン設定 ---")]
+    [SerializeField]
+    private DelayShotSettings delayShot = new DelayShotSettings
+    {
+        name = "緩急ディレイ撃ち",
+        enabled = true,
+        shotCount = 4,
+        baseInterval = 0.2f,
+        delayMultiplier = 2.5f,
+        damage = 25f
+    };
+
+    [SerializeField]
+    private CrossFireSettings crossFire = new CrossFireSettings
+    {
+        name = "十字・X字クロスファイア",
+        enabled = true,
+        waveInterval = 0.6f,
+        damage = 30f
+    };
+
+    [SerializeField]
+    private HomingSettings homingShot = new HomingSettings
+    {
+        name = "時間差ホーミング弾",
+        enabled = true,
+        bulletCount = 3,
+        speed = 8.0f,
+        homingSpeed = 3.0f,
+        damage = 35f
+    };
 
     [Header("=== 4-2. 範囲予兆攻撃設定 ===")]
     [SerializeField] private GameObject warningAreaPrefab;
     [SerializeField] private GameObject aoeExplosionPrefab;
-    [Tooltip("予兆が出てから爆発するまでの時間")]
-    [SerializeField] private float warningDuration = 1.5f;
+    [SerializeField] private float warningDuration = 1.0f;
 
     [Header("=== 4-3. 突進攻撃設定 ===")]
     [SerializeField] private float dashSpeed = 20.0f;
-    [SerializeField] private float dashDuration = 0.5f;
+    [SerializeField] private float dashDuration = 0.4f;
 
     [Header("=== 4-4. 雑魚召喚設定 ===")]
     [SerializeField] private GameObject minionPrefab;
     [SerializeField] private Transform[] minionSpawnPoints;
 
-    // --- 内部変数 ---
+    [Header("=== 4-5. レーザー攻撃設定 ===")]
+    [SerializeField] private GameObject laserPrefab;
+
+    [SerializeField]
+    private LaserSettings omniLaser = new LaserSettings
+    {
+        name = "360度なぎ払いレーザー",
+        enabled = true,
+        chargeTime = 1.8f,
+        duration = 4.5f,
+        radius = 1.0f,
+        distance = 100.0f,
+        damage = 100.0f,
+        sweepAngle = 360.0f
+    };
+
+    [SerializeField]
+    private LaserSettings straightGigaLaser = new LaserSettings
+    {
+        name = "一直線極太レーザー",
+        enabled = true,
+        chargeTime = 1.5f,
+        duration = 2.0f,
+        radius = 2.5f,
+        distance = 100.0f,
+        damage = 80.0f,
+        sweepAngle = 0.0f
+    };
+
+    [SerializeField]
+    private LaserSettings frontSweepLaser = new LaserSettings
+    {
+        name = "正面45度なぎ払いレーザー",
+        enabled = true,
+        chargeTime = 0.5f,
+        duration = 0.8f,
+        radius = 1.2f,
+        distance = 100.0f,
+        damage = 30.0f,
+        sweepAngle = 45.0f
+    };
+
     private float attackTimer = 0f;
     private bool isPerformingAction = false;
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
+        animator = GetComponentInChildren<Animator>();
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
@@ -93,63 +201,76 @@ public class BossAI : MonoBehaviour
 
     void Update()
     {
-        if (player == null || isPerformingAction) return;
+        if (player == null) return;
 
-        float distance = Vector3.Distance(transform.position, player.position);
-
-        if (attackTimer > 0)
+        if (!isPerformingAction)
         {
-            attackTimer -= Time.deltaTime;
-        }
+            float distance = Vector3.Distance(transform.position, player.position);
 
-        LookAtPlayer();
+            if (agent != null && agent.isOnNavMesh)
+            {
+                if (canFlee && distance < keepDistance)
+                {
+                    Vector3 fleeDirection = (transform.position - player.position).normalized;
+                    Vector3 fleeTarget = transform.position + fleeDirection * 3.0f;
 
-        // --- 移動・引き撃ち処理 ---
-        // canFlee が ON のときのみ逃走処理を実行
-        if (canFlee && distance < keepDistance)
-        {
-            Vector3 fleeDirection = (transform.position - player.position).normalized;
-            Vector3 fleeTarget = transform.position + fleeDirection * 3.0f;
+                    agent.isStopped = false;
+                    agent.speed = fleeSpeed;
+                    agent.SetDestination(fleeTarget);
+                }
+                else if (distance > meleeRange)
+                {
+                    agent.isStopped = false;
+                    agent.speed = normalSpeed;
+                    agent.SetDestination(player.position);
+                }
+                else
+                {
+                    agent.isStopped = true;
+                    LookAtPlayer();
+                }
+            }
 
-            agent.isStopped = false;
-            agent.speed = fleeSpeed;
-            agent.SetDestination(fleeTarget);
-        }
-        else if (distance > meleeRange)
-        {
-            agent.isStopped = false;
-            agent.speed = normalSpeed;
-            agent.SetDestination(player.position);
-        }
-        else
-        {
-            agent.isStopped = true;
-        }
-
-        // --- 攻撃実行 ---
-        if (attackTimer <= 0f)
-        {
-            ChooseAction();
-            attackTimer = attackInterval;
+            if (attackTimer > 0)
+            {
+                attackTimer -= Time.deltaTime;
+            }
+            else
+            {
+                ChooseAction(distance);
+                attackTimer = attackInterval;
+            }
         }
     }
 
-    private void ChooseAction()
+    private void ChooseAction(float distance)
     {
         List<int> availableActions = new List<int>();
 
-        if (canMelee) availableActions.Add(0);
+        if (canMelee && distance <= meleeRange) availableActions.Add(0);
 
-        if (canShoot)
+        if (canShoot && bulletPrefab != null)
         {
             availableActions.Add(1);
             availableActions.Add(2);
             availableActions.Add(3);
+
+            // 新規弾幕のON/OFF判定
+            if (delayShot.enabled) availableActions.Add(10);
+            if (crossFire.enabled) availableActions.Add(11);
+            if (homingShot.enabled) availableActions.Add(12);
         }
 
         if (canAreaAttack && warningAreaPrefab != null) availableActions.Add(4);
         if (canDash) availableActions.Add(5);
         if (canSummon && minionPrefab != null) availableActions.Add(6);
+
+        if (laserPrefab != null)
+        {
+            if (omniLaser.enabled) availableActions.Add(7);
+            if (straightGigaLaser.enabled) availableActions.Add(8);
+            if (frontSweepLaser.enabled) availableActions.Add(9);
+        }
 
         if (availableActions.Count == 0) return;
 
@@ -164,13 +285,145 @@ public class BossAI : MonoBehaviour
             case 4: StartCoroutine(AreaWarningRoutine()); break;
             case 5: StartCoroutine(DashRoutine()); break;
             case 6: StartCoroutine(SummonRoutine()); break;
+            case 7: StartCoroutine(LaserAttackRoutine(omniLaser)); break;
+            case 8: StartCoroutine(LaserAttackRoutine(straightGigaLaser)); break;
+            case 9: StartCoroutine(LaserAttackRoutine(frontSweepLaser)); break;
+            case 10: StartCoroutine(DelayShotRoutine()); break;
+            case 11: StartCoroutine(CrossFireRoutine()); break;
+            case 12: StartCoroutine(HomingShotRoutine()); break;
         }
+    }
+
+    // ==========================================
+    // 新規弾幕処理コルーチン
+    // ==========================================
+
+    // 1. 緩急ディレイ撃ち（パン…パン…パパン！）
+    private IEnumerator DelayShotRoutine()
+    {
+        isPerformingAction = true;
+        if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+
+        for (int i = 0; i < delayShot.shotCount; i++)
+        {
+            LookAtPlayer();
+            if (animator != null) animator.SetTrigger("Attack");
+
+            Vector3 spawnPos = GetFirePosition();
+            Quaternion spawnRot = GetTargetRotation(spawnPos);
+            Instantiate(bulletPrefab, spawnPos, spawnRot);
+
+            // 3発目に一瞬溜め（ディレイ）を入れて回避タイミングをずらす
+            float currentWait = (i == 2) ? delayShot.baseInterval * delayShot.delayMultiplier : delayShot.baseInterval;
+            yield return new WaitForSeconds(currentWait);
+        }
+
+        isPerformingAction = false;
+    }
+
+    // 2. 十字 ➔ X字 クロスファイア
+    private IEnumerator CrossFireRoutine()
+    {
+        isPerformingAction = true;
+        if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+
+        if (animator != null) animator.SetTrigger("Attack");
+        Vector3 spawnPos = GetFirePosition();
+
+        // 1波目：十字（0°, 90°, 180°, 270°）
+        float[] crossAngles = { 0f, 90f, 180f, 270f };
+        foreach (float angle in crossAngles)
+        {
+            Quaternion rot = Quaternion.Euler(0, angle, 0);
+            Instantiate(bulletPrefab, spawnPos, rot);
+        }
+
+        yield return new WaitForSeconds(crossFire.waveInterval);
+
+        // 2波目：X字（45°, 135°, 225°, 315°）
+        if (animator != null) animator.SetTrigger("Attack");
+        float[] xAngles = { 45f, 135f, 225f, 315f };
+        foreach (float angle in xAngles)
+        {
+            Quaternion rot = Quaternion.Euler(0, angle, 0);
+            Instantiate(bulletPrefab, spawnPos, rot);
+        }
+
+        isPerformingAction = false;
+    }
+
+    // 3. 時間差ホーミング弾
+    private IEnumerator HomingShotRoutine()
+    {
+        isPerformingAction = true;
+        if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+
+        if (animator != null) animator.SetTrigger("Attack");
+
+        Vector3 spawnPos = GetFirePosition();
+
+        // プレイヤーの左右に分散して展開
+        for (int i = 0; i < homingShot.bulletCount; i++)
+        {
+            float offsetAngle = -30f + (i * (60f / Mathf.Max(1, homingShot.bulletCount - 1)));
+            Quaternion spawnRot = transform.rotation * Quaternion.Euler(0, offsetAngle, 0);
+
+            GameObject bullet = Instantiate(bulletPrefab, spawnPos, spawnRot);
+
+            // HomingBullet コンポーネントを動的に追加・初期化
+            HomingBullet homing = bullet.GetComponent<HomingBullet>();
+            if (homing == null) homing = bullet.AddComponent<HomingBullet>();
+
+            homing.Init(player, homingShot.speed, homingShot.homingSpeed, homingShot.damage);
+
+            yield return new WaitForSeconds(0.2f); // 順番に放つ
+        }
+
+        isPerformingAction = false;
+    }
+
+    // ==========================================
+    // 既存処理（レーザー・近接・移動など）
+    // ==========================================
+    private IEnumerator LaserAttackRoutine(LaserSettings settings)
+    {
+        isPerformingAction = true;
+        if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+
+        if (animator != null) animator.SetTrigger("Attack");
+
+        LookAtPlayer();
+
+        Vector3 spawnPos = GetFirePosition();
+        Quaternion spawnRot = transform.rotation;
+
+        GameObject laserObj = Instantiate(laserPrefab, spawnPos, spawnRot, transform);
+        LaserBeam laserBeam = laserObj.GetComponent<LaserBeam>();
+
+        if (laserBeam != null)
+        {
+            laserBeam.FireLaser(
+                settings.chargeTime,
+                settings.duration,
+                settings.radius,
+                settings.distance,
+                settings.damage,
+                settings.sweepAngle
+            );
+        }
+
+        yield return new WaitForSeconds(settings.chargeTime + settings.duration);
+
+        if (laserObj != null) Destroy(laserObj);
+        isPerformingAction = false;
     }
 
     private IEnumerator AreaWarningRoutine()
     {
         isPerformingAction = true;
-        if (agent != null) agent.isStopped = true;
+        if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+
+        if (animator != null) animator.SetTrigger("Attack");
 
         Vector3 targetPos = player.position;
         targetPos.y = 0.01f;
@@ -178,7 +431,7 @@ public class BossAI : MonoBehaviour
         GameObject warning = Instantiate(warningAreaPrefab, targetPos, Quaternion.identity);
         yield return new WaitForSeconds(warningDuration);
 
-        Destroy(warning);
+        if (warning != null) Destroy(warning);
         if (aoeExplosionPrefab != null)
         {
             Instantiate(aoeExplosionPrefab, targetPos, Quaternion.identity);
@@ -190,18 +443,25 @@ public class BossAI : MonoBehaviour
     private IEnumerator DashRoutine()
     {
         isPerformingAction = true;
-        if (agent != null) agent.isStopped = true;
 
-        yield return new WaitForSeconds(0.5f);
+        if (animator != null) animator.SetTrigger("Attack");
 
-        Vector3 dashDir = transform.forward;
-        float timer = 0f;
+        yield return new WaitForSeconds(0.1f);
 
-        while (timer < dashDuration)
+        if (agent != null && agent.isOnNavMesh)
         {
-            transform.position += dashDir * dashSpeed * Time.deltaTime;
-            timer += Time.deltaTime;
-            yield return null;
+            agent.isStopped = false;
+            agent.speed = dashSpeed;
+            Vector3 dashTarget = transform.position + transform.forward * (dashSpeed * dashDuration);
+            agent.SetDestination(dashTarget);
+        }
+
+        yield return new WaitForSeconds(dashDuration);
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.speed = normalSpeed;
+            agent.isStopped = true;
         }
 
         isPerformingAction = false;
@@ -210,9 +470,11 @@ public class BossAI : MonoBehaviour
     private IEnumerator SummonRoutine()
     {
         isPerformingAction = true;
-        if (agent != null) agent.isStopped = true;
+        if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
 
-        yield return new WaitForSeconds(0.8f);
+        if (animator != null) animator.SetTrigger("Attack");
+
+        yield return new WaitForSeconds(0.3f);
 
         if (minionSpawnPoints != null && minionSpawnPoints.Length > 0)
         {
@@ -232,6 +494,8 @@ public class BossAI : MonoBehaviour
 
     private void MeleeAttack()
     {
+        if (animator != null) animator.SetTrigger("Attack");
+
         if (bossProximity != null)
         {
             bossProximity.PerformRandomMeleeAttack();
@@ -245,6 +509,8 @@ public class BossAI : MonoBehaviour
     private void SingleShot()
     {
         if (bulletPrefab == null) return;
+        if (animator != null) animator.SetTrigger("Attack");
+
         Vector3 spawnPos = GetFirePosition();
         Quaternion spawnRot = GetTargetRotation(spawnPos);
         Instantiate(bulletPrefab, spawnPos, spawnRot);
@@ -253,6 +519,8 @@ public class BossAI : MonoBehaviour
     private void ThreeWayShot()
     {
         if (bulletPrefab == null) return;
+        if (animator != null) animator.SetTrigger("Attack");
+
         Vector3 spawnPos = GetFirePosition();
         Quaternion baseRot = GetTargetRotation(spawnPos);
         float[] angles = { 0f, -15f, 15f };
@@ -267,6 +535,8 @@ public class BossAI : MonoBehaviour
     private void OmniShot()
     {
         if (bulletPrefab == null) return;
+        if (animator != null) animator.SetTrigger("Attack");
+
         Vector3 spawnPos = GetFirePosition();
         float angleStep = 360f / omniBulletCount;
 
@@ -296,7 +566,7 @@ public class BossAI : MonoBehaviour
         if (direction != Vector3.zero)
         {
             Quaternion lookRotation = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * 5f);
+            transform.rotation = lookRotation;
         }
     }
 }

@@ -10,8 +10,12 @@ public class LaserBeam : MonoBehaviour
     public Color warningColor = Color.red;
     public Color attackColor = Color.cyan;
 
+    [Header("=== 遮蔽物レイヤー設定 ===")]
+    [Tooltip("柱や壁（DefaultやEnvironmentなど）のレイヤーを指定")]
+    public LayerMask obstacleMask = ~0; // デフォルトはすべてのレイヤーを対象
+
     private float laserRadius = 1.0f;
-    private float laserDistance = 30f;
+    private float laserDistance = 100f; // ★ 射程距離を拡張（標準100m）
     private float laserDamagePerSecond = 40f;
 
     void Awake()
@@ -28,13 +32,13 @@ public class LaserBeam : MonoBehaviour
     }
 
     /// <summary>
-    /// レーザー発射メイン処理
+    /// レーザーを発射・回転させる
     /// </summary>
-    /// <param name="sweepAngle">0の場合は直進、それ以外は左右の薙ぎ払い角度（例: 60なら-30°〜+30°）</param>
-    public void FireLaser(float chargeTime, float duration, float radius, float distance, float damage, float sweepAngle = 0f)
+    /// <param name="sweepAngle">回転させる角度（360なら全方位1周、720なら2周）</param>
+    public void FireLaser(float chargeTime, float duration, float radius, float distance, float damage, float sweepAngle = 360f)
     {
         laserRadius = radius;
-        laserDistance = distance;
+        laserDistance = distance; // 引数で指定された射程距離を適用
         laserDamagePerSecond = damage;
 
         StartCoroutine(LaserRoutine(chargeTime, duration, sweepAngle));
@@ -46,36 +50,23 @@ public class LaserBeam : MonoBehaviour
 
         lineRenderer.enabled = true;
 
-        // 開始角度と終了角度の計算（現在の正面向を基準）
         Quaternion startRot = transform.localRotation;
-        Quaternion leftRot = startRot * Quaternion.Euler(0, -sweepAngle / 2f, 0);
-        Quaternion rightRot = startRot * Quaternion.Euler(0, sweepAngle / 2f, 0);
 
-        // ----------------------------------------
         // 1. 予兆（赤い細線）
-        // ----------------------------------------
         lineRenderer.startWidth = 0.08f;
         lineRenderer.endWidth = 0.08f;
         lineRenderer.startColor = warningColor;
         lineRenderer.endColor = warningColor;
 
-        if (sweepAngle > 0f)
-        {
-            // 薙ぎ払いの場合は、開始位置（左端）へ銃口（判定）を向ける
-            transform.localRotation = leftRot;
-        }
-
         float timer = 0f;
         while (timer < chargeTime)
         {
             timer += Time.deltaTime;
-            UpdateLinePositions();
+            UpdateLinePositions(0f);
             yield return null;
         }
 
-        // ----------------------------------------
-        // 2. 本照射（極太レーザー＋薙ぎ払い移動）
-        // ----------------------------------------
+        // 2. 本照射（太レーザー＋全方位回転判定）
         lineRenderer.startWidth = laserRadius * 2f;
         lineRenderer.endWidth = laserRadius * 2f;
         lineRenderer.startColor = attackColor;
@@ -87,20 +78,21 @@ public class LaserBeam : MonoBehaviour
             timer += Time.deltaTime;
             float progress = Mathf.Clamp01(timer / duration);
 
-            // 薙ぎ払い角度の補間（左から右へ回転）
-            if (sweepAngle > 0f)
-            {
-                transform.localRotation = Quaternion.Slerp(leftRot, rightRot, progress);
-            }
+            // ★ 指定した角度（360度など）まで時間経過に合わせて回転
+            float currentAngle = Mathf.Lerp(0f, sweepAngle, progress);
+            transform.localRotation = startRot * Quaternion.Euler(0, currentAngle, 0);
 
-            UpdateLinePositions();
+            // 柱で止まる距離を計算
+            float currentHitDistance = UpdateLinePositions(laserRadius);
 
-            // 判定処理（円柱状判定）
+            // プレイヤーへのヒット判定
             RaycastHit[] hits = Physics.SphereCastAll(
                 transform.position,
                 laserRadius,
                 transform.forward,
-                laserDistance
+                currentHitDistance,
+                ~0,
+                QueryTriggerInteraction.Ignore
             );
 
             foreach (var hit in hits)
@@ -118,16 +110,40 @@ public class LaserBeam : MonoBehaviour
             yield return null;
         }
 
-        // ----------------------------------------
-        // 3. 照射終了・向きを元に戻す
-        // ----------------------------------------
+        // 3. 終了処理
         lineRenderer.enabled = false;
         transform.localRotation = startRot;
     }
 
-    private void UpdateLinePositions()
+    /// <summary>
+    /// 柱や壁に当たったらそこでレーザーを止める描画更新
+    /// </summary>
+    private float UpdateLinePositions(float checkRadius)
     {
         lineRenderer.SetPosition(0, transform.position);
+
+        RaycastHit hit;
+        bool isHit = false;
+
+        if (checkRadius > 0.01f)
+        {
+            isHit = Physics.SphereCast(transform.position, checkRadius, transform.forward, out hit, laserDistance, obstacleMask);
+        }
+        else
+        {
+            isHit = Physics.Raycast(transform.position, transform.forward, out hit, laserDistance, obstacleMask);
+        }
+
+        if (isHit)
+        {
+            if (!hit.collider.CompareTag("Player") && !hit.collider.CompareTag("Boss"))
+            {
+                lineRenderer.SetPosition(1, transform.position + transform.forward * hit.distance);
+                return hit.distance;
+            }
+        }
+
         lineRenderer.SetPosition(1, transform.position + transform.forward * laserDistance);
+        return laserDistance;
     }
 }

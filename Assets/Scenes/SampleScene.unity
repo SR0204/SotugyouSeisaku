@@ -122,7 +122,7 @@ NavMeshSettings:
     preserveTilesOutsideBounds: 0
     debug:
       m_Flags: 0
-  m_NavMeshData: {fileID: 0}
+  m_NavMeshData: {fileID: 23800000, guid: 430d481f790c6a441850641b98ad6364, type: 2}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -431,20 +431,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f9b4624142972a74595f3c9730e05e3b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  arenaPrefab: {fileID: 3569690956674444035, guid: 7771444dd74c2ff40af520fe34c67b2f, type: 3}
+  arenaPrefabs:
+  - {fileID: 3569690956674444035, guid: 7771444dd74c2ff40af520fe34c67b2f, type: 3}
+  - {fileID: 4266014159969460275, guid: 6d8771ae1efd7d046b05bcbb60479d10, type: 3}
+  - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
+  bossSpecificArenas:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
+  - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
+  restAreaPrefab: {fileID: 3569690956674444035, guid: 7771444dd74c2ff40af520fe34c67b2f, type: 3}
   playerPrefab: {fileID: 7276806339060704671, guid: 17a54095d25f3384fb05d5b6f61b5580, type: 3}
   bossPrefabs:
-  - {fileID: 734172779227090506, guid: a5d6dd8757a6cea43a15168f3cdabe01, type: 3}
-  - {fileID: 734172779227090506, guid: bfc9d017a73206a4b95ffbe2fd53cef1, type: 3}
-  - {fileID: 734172779227090506, guid: 68cc612ef16288f47a1b4a8935079a60, type: 3}
-  - {fileID: 734172779227090506, guid: d461677f33c5cf442b378ae230cc99b1, type: 3}
-  - {fileID: 734172779227090506, guid: 859da248b9b48bf47832510fef0e11a4, type: 3}
+  - {fileID: 7276806339060704671, guid: f2484eecf88f2684fbfa3fc3a297a9c5, type: 3}
+  - {fileID: 7276806339060704671, guid: 296e4f55060dcb641ab19a82df149883, type: 3}
+  - {fileID: 7276806339060704671, guid: e24598b34e681f94fa2ef0e351a3f36c, type: 3}
+  - {fileID: 7276806339060704671, guid: 4c0958a381b19e24db7624a459fa529a, type: 3}
+  - {fileID: 7276806339060704671, guid: a1ade55c520d26c49b2b33ea020ef2bf, type: 3}
   uiCanvasPrefab: {fileID: 6654746298356397330, guid: 9f6b27dd0c5a31547b74b35f15130935, type: 3}
-  restAreaPrefab: {fileID: 0}
-  arenaPosition: {x: 0, y: -0.5, z: 0}
+  stagePosition: {x: 0, y: -0.5, z: 0}
   playerPosition: {x: 0, y: 1, z: 0}
   bossPosition: {x: 0, y: 1, z: 10}
-  restPointPosition: {x: 0, y: 1, z: 3}
 --- !u!4 &1585410308
 Transform:
   m_ObjectHideFlags: 0

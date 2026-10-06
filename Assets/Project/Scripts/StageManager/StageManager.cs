@@ -7,20 +7,24 @@ using TMPro;
 public class StageManager : MonoBehaviour
 {
     [Header("プレハブ設定")]
-    public GameObject arenaPrefab;
+    [Tooltip("通常のアリーナプレハブ（ランダム選出用）")]
+    public GameObject[] arenaPrefabs;
+
+    [Tooltip("特定ボス専用のアリーナ（例: コロシアムなど）。空欄なら通常アリーナからランダム選出")]
+    public GameObject[] bossSpecificArenas; // ★ ボスごとの固定ステージ用（ボスと同じ要素数にする）
+
+    public GameObject restAreaPrefab;           // 休息専用エリア
     public GameObject playerPrefab;
     public GameObject[] bossPrefabs;
     public GameObject uiCanvasPrefab;
-    public GameObject restAreaPrefab;
 
-    [Header("生成位置")]
-    public Vector3 arenaPosition = new Vector3(0, -0.5f, 0);
-    public Vector3 playerPosition = new Vector3(0, 1f, 0);
+    [Header("生成位置設定")]
+    public Vector3 stagePosition = new Vector3(0, -0.5f, 0);
+    public Vector3 playerPosition = new Vector3(0, 0.1f, 0);
     public Vector3 bossPosition = new Vector3(0, 1f, 10f);
-    public Vector3 restPointPosition = new Vector3(0, 1f, 3f);
 
+    private GameObject currentStageInstance;
     private GameObject currentBossInstance;
-    private GameObject currentRestAreaInstance;
     private GameObject currentPlayerInstance;
     private PlayerController playerCtrl;
 
@@ -58,7 +62,6 @@ public class StageManager : MonoBehaviour
             Transform bossHPObj = canvasObj.transform.Find("BossHPBar");
             if (bossHPObj != null) bossHPSlider = bossHPObj.GetComponent<Slider>();
 
-            // GameOverText の参照取得
             Transform gameOverObj = canvasObj.transform.Find("GameOverText");
             if (gameOverObj != null)
             {
@@ -66,7 +69,6 @@ public class StageManager : MonoBehaviour
                 gameOverText.gameObject.SetActive(false);
             }
 
-            // LockOnIcon を探してカメラに渡す
             Transform lockOnIconObj = canvasObj.transform.Find("LockOnIcon");
             if (lockOnIconObj != null && Camera.main != null)
             {
@@ -77,7 +79,7 @@ public class StageManager : MonoBehaviour
                 }
             }
 
-            // ★ ボス選択パネル内の全ボタンを自動で登録する（Boss1Button, Boss2Button, Boss3Button...）
+            // ボス選択ボタン自動登録
             Transform panelObj = canvasObj.transform.Find("BossSelectPanel");
             if (panelObj != null)
             {
@@ -85,8 +87,8 @@ public class StageManager : MonoBehaviour
 
                 for (int i = 0; i < bossPrefabs.Length; i++)
                 {
-                    int bossIndex = i; // クロージャ用キャプチャ
-                    string buttonName = $"Boss{bossIndex + 1}Button"; // Boss1Button, Boss2Button, Boss3Button
+                    int bossIndex = i;
+                    string buttonName = $"Boss{bossIndex + 1}Button";
 
                     Transform btnObj = panelObj.Find(buttonName);
                     if (btnObj != null)
@@ -104,16 +106,10 @@ public class StageManager : MonoBehaviour
             }
         }
 
-        // 2. Arena 生成
-        if (arenaPrefab != null)
-        {
-            Instantiate(arenaPrefab, arenaPosition, Quaternion.identity);
-        }
-
-        // 3. Player 生成
+        // 2. Player 生成
         SpawnPlayer(healthSlider, staminaSlider, estusText);
 
-        // 最初の休息モード（ボス選択画面）を開く
+        // 3. 最初は休息エリアを表示
         ShowRestArea();
     }
 
@@ -141,6 +137,26 @@ public class StageManager : MonoBehaviour
         }
     }
 
+    private void TeleportPlayer(Vector3 targetPos)
+    {
+        if (currentPlayerInstance == null) return;
+
+        CharacterController cc = currentPlayerInstance.GetComponent<CharacterController>();
+        Rigidbody rb = currentPlayerInstance.GetComponent<Rigidbody>();
+
+        if (cc != null) cc.enabled = false;
+
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        currentPlayerInstance.transform.position = targetPos;
+
+        if (cc != null) cc.enabled = true;
+    }
+
     void Update()
     {
         if (isStageActive && currentBossInstance == null)
@@ -158,16 +174,25 @@ public class StageManager : MonoBehaviour
             bossHPSlider.gameObject.SetActive(false);
         }
 
-        Debug.Log("ボス撃破！休息エリアを開放します。");
+        Debug.Log("ボス撃破！休息エリアを表示します。");
         ShowRestArea();
     }
 
     public void ShowRestArea()
     {
-        if (restAreaPrefab != null && currentRestAreaInstance == null)
+        if (currentStageInstance != null)
         {
-            currentRestAreaInstance = Instantiate(restAreaPrefab, restPointPosition, Quaternion.identity);
+            Destroy(currentStageInstance);
         }
+
+        if (restAreaPrefab != null)
+        {
+            currentStageInstance = Instantiate(restAreaPrefab, stagePosition, Quaternion.identity);
+        }
+
+        TeleportPlayer(playerPosition);
+
+        RestAndHeal();
 
         if (bossSelectPanel != null)
         {
@@ -177,6 +202,7 @@ public class StageManager : MonoBehaviour
         }
     }
 
+    // ★ ボス選択＆アリーナ生成（固定アリーナ優先判定）
     public void SelectAndStartBoss(int bossIndex)
     {
         if (bossIndex < 0 || bossIndex >= bossPrefabs.Length) return;
@@ -188,10 +214,36 @@ public class StageManager : MonoBehaviour
             Cursor.visible = false;
         }
 
-        if (currentRestAreaInstance != null)
+        if (currentStageInstance != null)
         {
-            Destroy(currentRestAreaInstance);
+            Destroy(currentStageInstance);
         }
+
+        // ---------------------------------------------------------
+        // ★ アリーナの決定ロジック
+        // ---------------------------------------------------------
+        GameObject selectedArenaPrefab = null;
+
+        // 1. もし「ボス専用アリーナ」が設定されていればそれを優先
+        if (bossSpecificArenas != null && bossIndex < bossSpecificArenas.Length && bossSpecificArenas[bossIndex] != null)
+        {
+            selectedArenaPrefab = bossSpecificArenas[bossIndex];
+        }
+        // 2. 設定されていなければ、従来通りランダムで選ぶ
+        else if (arenaPrefabs != null && arenaPrefabs.Length > 0)
+        {
+            int randomIndex = Random.Range(0, arenaPrefabs.Length);
+            selectedArenaPrefab = arenaPrefabs[randomIndex];
+        }
+
+        // アリーナを生成
+        if (selectedArenaPrefab != null)
+        {
+            currentStageInstance = Instantiate(selectedArenaPrefab, stagePosition, Quaternion.identity);
+        }
+        // ---------------------------------------------------------
+
+        TeleportPlayer(playerPosition);
 
         if (bossPrefabs[bossIndex] != null)
         {
@@ -219,7 +271,6 @@ public class StageManager : MonoBehaviour
         }
     }
 
-    // ★ プレイヤー死亡時の処理（YOU DIED演出＆リトライ）
     public void OnPlayerDied()
     {
         StartCoroutine(GameOverRoutine());
@@ -229,7 +280,6 @@ public class StageManager : MonoBehaviour
     {
         isStageActive = false;
 
-        // ボスを消去
         if (currentBossInstance != null)
         {
             Destroy(currentBossInstance);
@@ -240,25 +290,19 @@ public class StageManager : MonoBehaviour
             bossHPSlider.gameObject.SetActive(false);
         }
 
-        // 「YOU DIED」を表示
         if (gameOverText != null)
         {
             gameOverText.gameObject.SetActive(true);
         }
 
-        // 3秒待機
         yield return new WaitForSeconds(3.0f);
 
-        // テキスト非表示
         if (gameOverText != null)
         {
             gameOverText.gameObject.SetActive(false);
         }
 
-        // 再度プレイヤーを生成して初期化（メンバ変数のUI参照を渡す）
         SpawnPlayer(healthSlider, staminaSlider, estusText);
-
-        // 休息エリア（ボス選択）に戻す
         ShowRestArea();
     }
 }
