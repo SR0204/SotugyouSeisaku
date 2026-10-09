@@ -495,4 +495,7 @@ public class PlayerController : MonoBehaviour
             stageManager.OnPlayerDied();
         }
     }
+
+    public void AE_MeleeHit() { }
+    public void AE_OnActionEnd() { }
 }

@@ -436,19 +436,21 @@ MonoBehaviour:
   - {fileID: 4266014159969460275, guid: 6d8771ae1efd7d046b05bcbb60479d10, type: 3}
   - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
   bossSpecificArenas:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
+  - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
+  - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
+  - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
   - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
   - {fileID: 5064676309396846548, guid: f2b921815445a21439d16479bac61837, type: 3}
   restAreaPrefab: {fileID: 3569690956674444035, guid: 7771444dd74c2ff40af520fe34c67b2f, type: 3}
   playerPrefab: {fileID: 7276806339060704671, guid: 17a54095d25f3384fb05d5b6f61b5580, type: 3}
   bossPrefabs:
-  - {fileID: 7276806339060704671, guid: f2484eecf88f2684fbfa3fc3a297a9c5, type: 3}
+  - {fileID: 4345392967253956360, guid: 5e2d73c7517a12143bf29188a877d4d0, type: 3}
   - {fileID: 7276806339060704671, guid: 296e4f55060dcb641ab19a82df149883, type: 3}
   - {fileID: 7276806339060704671, guid: e24598b34e681f94fa2ef0e351a3f36c, type: 3}
   - {fileID: 7276806339060704671, guid: 4c0958a381b19e24db7624a459fa529a, type: 3}
   - {fileID: 7276806339060704671, guid: a1ade55c520d26c49b2b33ea020ef2bf, type: 3}
+  - {fileID: 7276806339060704671, guid: 5e2d73c7517a12143bf29188a877d4d0, type: 3}
   uiCanvasPrefab: {fileID: 6654746298356397330, guid: 9f6b27dd0c5a31547b74b35f15130935, type: 3}
   stagePosition: {x: 0, y: -0.5, z: 0}
   playerPosition: {x: 0, y: 1, z: 0}
