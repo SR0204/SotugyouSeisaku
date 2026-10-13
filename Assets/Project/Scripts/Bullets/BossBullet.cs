@@ -15,21 +15,42 @@ public class BossBullet : MonoBehaviour
 
     void Update()
     {
-        // 前方に飛ぶ
-        transform.Translate(Vector3.forward * speed * Time.deltaTime);
+        // 前方に直線移動
+        transform.Translate(Vector3.forward * speed * Time.deltaTime, Space.Self);
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // プレイヤーに当たったらダメージを与えて消滅
+        // 1. ボス自身、または「Boss」タグが付いているオブジェクトは完全に無視
+        if (other.CompareTag("Boss") || other.GetComponent<BossRadagonAI>() != null)
+        {
+            return;
+        }
+
+        // 2. 弾同士の衝突も無視
+        if (other.CompareTag("Bullet") || other.GetComponent<BossBullet>() != null)
+        {
+            return;
+        }
+
+        // 3. プレイヤーに当たったらダメージを与えて消滅
         if (other.CompareTag("Player"))
         {
             PlayerController player = other.GetComponent<PlayerController>();
-            if (player != null) player.TakeDamage(damage);
+            if (player == null)
+            {
+                player = other.GetComponentInParent<PlayerController>();
+            }
+
+            if (player != null)
+            {
+                player.TakeDamage(damage);
+            }
+
             Destroy(gameObject);
         }
-        // ★ ボス自身や他の弾以外（柱、壁、床など）に当たったら消滅
-        else if (!other.CompareTag("Boss") && !other.CompareTag("Bullet"))
+        // 4. 壁や床（Trigger以外のコライダー）に当たったら消滅
+        else if (!other.isTrigger)
         {
             Destroy(gameObject);
         }

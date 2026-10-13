@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -12,79 +12,81 @@ public class BossRadagonAI : MonoBehaviour
     private Animator animator;
 
     // ==========================================
-    // UŒ‚ƒWƒƒƒ“ƒ‹‚²‚Æ‚Ìİ’è\‘¢‘Ì
+    // æ”»æ’ƒã‚¸ãƒ£ãƒ³ãƒ«ã”ã¨ã®è¨­å®šæ§‹é€ ä½“
     // ==========================================
     [System.Serializable]
     public class MeleeAttackSettings
     {
-        [Tooltip("’Êí‹ßÚ‚Ìƒ_ƒ[ƒW")]
+        [Tooltip("é€šå¸¸è¿‘æ¥ã®ãƒ€ãƒ¡ãƒ¼ã‚¸")]
         public float damage = 25f;
-        [Tooltip("‹­UŒ‚E’@‚«‚Â‚¯‚Ìƒ_ƒ[ƒW")]
+        [Tooltip("å¼·æ”»æ’ƒãƒ»å©ãã¤ã‘ã®ãƒ€ãƒ¡ãƒ¼ã‚¸")]
         public float heavyDamage = 45f;
-        [Tooltip("UŒ‚‚ª“Í‚­‹——£")]
+        [Tooltip("æ”»æ’ƒãŒå±Šãè·é›¢")]
         public float attackRange = 3.5f;
     }
 
     [System.Serializable]
     public class RangedAttackSettings
     {
-        [Tooltip("‰“‹——£UŒ‚‚Ìƒ_ƒ[ƒW")]
+        [Tooltip("é è·é›¢æ”»æ’ƒã®ãƒ€ãƒ¡ãƒ¼ã‚¸")]
         public float damage = 20f;
-        [Tooltip("‰“‹——£UŒ‚‚ğŠJn‚·‚é‹——£")]
+        [Tooltip("é è·é›¢æ”»æ’ƒã‚’é–‹å§‹ã™ã‚‹è·é›¢")]
         public float minRange = 8f;
-        [Tooltip("”­Ë‚·‚é’eŠÛEŒõ’eƒvƒŒƒnƒu")]
+        [Tooltip("ç™ºå°„ã™ã‚‹å¼¾ä¸¸ãƒ»å…‰å¼¾ãƒ—ãƒ¬ãƒãƒ–")]
         public GameObject projectilePrefab;
-        [Tooltip("’e‚Ì¶¬E”­ËˆÊ’u")]
+        [Tooltip("å¼¾ã®ç”Ÿæˆãƒ»ç™ºå°„ä½ç½®")]
         public Transform spawnPoint;
+        [Tooltip("å¼¾ã®é£›è¡Œã‚¹ãƒ”ãƒ¼ãƒ‰")]
+        public float projectileSpeed = 15f;
     }
 
     [System.Serializable]
     public class AreaAttackSettings
     {
-        [Tooltip("”ÍˆÍUŒ‚i’n–Ê’@‚«‚Â‚¯“™j‚Ìƒ_ƒ[ƒW")]
+        [Tooltip("ç¯„å›²æ”»æ’ƒï¼ˆåœ°é¢å©ãã¤ã‘ç­‰ï¼‰ã®ãƒ€ãƒ¡ãƒ¼ã‚¸")]
         public float damage = 50f;
-        [Tooltip("”ÍˆÍUŒ‚‚ğ”­“®‚·‚é‹——£")]
+        [Tooltip("ç¯„å›²æ”»æ’ƒã‚’ç™ºå‹•ã™ã‚‹è·é›¢")]
         public float triggerRange = 5f;
-        [Tooltip("UŒ‚‚Ì—LŒø‰ÁŠQ”¼Œa")]
+        [Tooltip("æ”»æ’ƒã®æœ‰åŠ¹åŠ å®³åŠå¾„")]
         public float radius = 6f;
-        [Tooltip("”­¶‚³‚¹‚é”ÍˆÍƒGƒtƒFƒNƒgi”š”­EÕŒ‚”g“™j")]
+        [Tooltip("ç™ºç”Ÿã•ã›ã‚‹ç¯„å›²ã‚¨ãƒ•ã‚§ã‚¯ãƒˆï¼ˆçˆ†ç™ºãƒ»è¡æ’ƒæ³¢ç­‰ï¼‰")]
         public GameObject areaVfxPrefab;
-        [Tooltip("ƒGƒtƒFƒNƒg”­¶ˆÊ’ui‘«Œ³“™j")]
+        [Tooltip("ã‚¨ãƒ•ã‚§ã‚¯ãƒˆç™ºç”Ÿä½ç½®ï¼ˆè¶³å…ƒç­‰ï¼‰")]
         public Transform areaPoint;
     }
 
     [System.Serializable]
     public class LaserAttackSettings
     {
-        [Tooltip("ƒŒ[ƒU[‚Ì1ƒqƒbƒg‚ ‚½‚è‚Ìƒ_ƒ[ƒW")]
+        [Tooltip("ãƒ¬ãƒ¼ã‚¶ãƒ¼ã®1ãƒ’ãƒƒãƒˆã‚ãŸã‚Šã®ãƒ€ãƒ¡ãƒ¼ã‚¸")]
         public float damagePerTick = 15f;
-        [Tooltip("ƒŒ[ƒU[‚Ì—LŒøË’ö‹——£")]
+        [Tooltip("ãƒ¬ãƒ¼ã‚¶ãƒ¼ã®æœ‰åŠ¹å°„ç¨‹è·é›¢")]
         public float maxDistance = 15f;
-        [Tooltip("ÆËŠÔi•bj")]
+        [Tooltip("ç…§å°„æ™‚é–“ï¼ˆç§’ï¼‰")]
         public float duration = 2.0f;
-        [Tooltip("ƒŒ[ƒU[—pLineRendereri‚Ü‚½‚Í”»’èƒGƒtƒFƒNƒgj")]
+        [Tooltip("ãƒ¬ãƒ¼ã‚¶ãƒ¼ç”¨LineRendererï¼ˆã¾ãŸã¯åˆ¤å®šã‚¨ãƒ•ã‚§ã‚¯ãƒˆï¼‰")]
         public LineRenderer laserLine;
-        [Tooltip("ƒŒ[ƒU[”­ËˆÊ’ui‰EèE•Šíæ’[“™j")]
+        [Tooltip("ãƒ¬ãƒ¼ã‚¶ãƒ¼ç™ºå°„ä½ç½®ï¼ˆå³æ‰‹ãƒ»æ­¦å™¨å…ˆç«¯ç­‰ï¼‰")]
         public Transform firingPoint;
     }
 
     // ==========================================
-    // Inspector İ’è€–Ú
+    // Inspector è¨­å®šé …ç›®
     // ==========================================
-    [Header("=== 1. ‹ßÚUŒ‚İ’è ===")]
+    [Header("=== 1. è¿‘æ¥æ”»æ’ƒè¨­å®š ===")]
     public MeleeAttackSettings meleeAttack;
 
-    [Header("=== 2. ‰“‹——£UŒ‚İ’è ===")]
+    [Header("=== 2. é è·é›¢æ”»æ’ƒè¨­å®š ===")]
     public RangedAttackSettings rangedAttack;
 
-    [Header("=== 3. ”ÍˆÍUŒ‚iAoEjİ’è ===")]
+    [Header("=== 3. ç¯„å›²æ”»æ’ƒï¼ˆAoEï¼‰è¨­å®š ===")]
     public AreaAttackSettings areaAttack;
 
-    [Header("=== 4. ƒŒ[ƒU[UŒ‚İ’è ===")]
+    [Header("=== 4. ãƒ¬ãƒ¼ã‚¶ãƒ¼æ”»æ’ƒè¨­å®š ===")]
     public LaserAttackSettings laserAttack;
 
-    [Header("=== ‹¤’ÊEƒtƒF[ƒYİ’è ===")]
-    [Tooltip("UŒ‚‚ÆUŒ‚‚ÌŠÔ‚ÌƒCƒ“ƒ^[ƒoƒ‹ŠÔ")]
+    [Header("=== å…±é€šãƒ»ãƒ•ã‚§ãƒ¼ã‚ºè¨­å®š ===")]
+    [Tooltip("æ”»æ’ƒã¨æ”»æ’ƒã®é–“ã®ã‚¤ãƒ³ã‚¿ãƒ¼ãƒãƒ«æ™‚é–“")]
     public float attackInterval = 2.0f;
     public bool isPhase2 = false;
     public float phase2HpThreshold = 0.5f;
@@ -100,7 +102,9 @@ public class BossRadagonAI : MonoBehaviour
         MeleeHeavy,
         Ranged,
         Area,
-        Laser
+        LaserStraight, // â˜… ä¸€ç›´ç·šãƒ¬ãƒ¼ã‚¶ãƒ¼
+        LaserSweep360, // â˜… 360åº¦è–™ãæ‰•ã„
+        LaserSweep90    // â˜… å‰æ–¹90åº¦è–™ãæ‰•ã„
     }
 
     void Start()
@@ -132,7 +136,7 @@ public class BossRadagonAI : MonoBehaviour
 
         float distance = Vector3.Distance(transform.position, player.position);
 
-        // 1. ˆÚ“®E’Ç”öˆ—
+        // 1. ç§»å‹•ãƒ»è¿½å°¾å‡¦ç†
         if (agent != null && agent.isOnNavMesh)
         {
             float stopDistance = isPhase2 ? meleeAttack.attackRange : meleeAttack.attackRange;
@@ -150,7 +154,7 @@ public class BossRadagonAI : MonoBehaviour
             }
         }
 
-        // 2. vlƒ‹[ƒ`ƒ“i‹——£‚ÆƒtƒF[ƒY‚É‰‚¶‚ÄƒWƒƒƒ“ƒ‹‚ğ‘I‘ğj
+        // 2. æ€è€ƒãƒ«ãƒ¼ãƒãƒ³
         if (attackTimer > 0)
         {
             attackTimer -= Time.deltaTime;
@@ -178,16 +182,16 @@ public class BossRadagonAI : MonoBehaviour
     {
         List<AttackCategory> validAttacks = new List<AttackCategory>();
 
-        // yƒeƒXƒg—pz‹——£‚âƒtƒF[ƒY‚ÉŠÖŒW‚È‚­‘SUŒ‚‚ğ’Š‘IŒó•â‚É“ü‚ê‚é
         validAttacks.Add(AttackCategory.MeleeNormal);
         validAttacks.Add(AttackCategory.MeleeHeavy);
         validAttacks.Add(AttackCategory.Ranged);
         validAttacks.Add(AttackCategory.Area);
-        validAttacks.Add(AttackCategory.Laser);
+        validAttacks.Add(AttackCategory.LaserStraight);
+        validAttacks.Add(AttackCategory.LaserSweep360);
+        validAttacks.Add(AttackCategory.LaserSweep90);
 
         if (validAttacks.Count == 0) return;
 
-        // ‘SUŒ‚‚Ì’†‚©‚çƒ‰ƒ“ƒ_ƒ€‚É‘I‘ğ
         currentAttack = validAttacks[Random.Range(0, validAttacks.Count)];
         StartCoroutine(ExecuteAttackRoutine(currentAttack));
     }
@@ -205,28 +209,36 @@ public class BossRadagonAI : MonoBehaviour
             {
                 case AttackCategory.MeleeNormal:
                     animator.SetTrigger("Attack");
-                    Invoke("AE_MeleeHit", 0.5f);
+                    Invoke("AE_MeleeHit", 0.6f);
                     break;
                 case AttackCategory.MeleeHeavy:
                     animator.SetTrigger("HeavyAttack");
-                    Invoke("AE_MeleeHit", 0.5f);
+                    Invoke("AE_MeleeHit", 0.9f);
                     break;
                 case AttackCategory.Ranged:
                     animator.SetTrigger("RangedAttack");
-                    Invoke("AE_ShootProjectile", 0.3f); // ƒ‚[ƒVƒ‡ƒ“ŠJn0.3•bŒã‚É‹Ê”­ËI
+                    Invoke("AE_ShootProjectile", 0.5f);
                     break;
                 case AttackCategory.Area:
                     animator.SetTrigger("AreaAttack");
-                    Invoke("AE_AreaImpact", 0.4f);      // ƒ‚[ƒVƒ‡ƒ“ŠJn0.4•bŒã‚É‘«Œ³”š”jI
+                    Invoke("AE_AreaImpact", 0.7f);
                     break;
-                case AttackCategory.Laser:
+                // â˜… ãƒ¬ãƒ¼ã‚¶ãƒ¼3ç¨®ï¼ˆã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®Triggeråã¯å…±é€šã§OKï¼‰
+                case AttackCategory.LaserStraight:
                     animator.SetTrigger("LaserAttack");
-                    Invoke("AE_StartLaser", 0.2f);      // ƒ‚[ƒVƒ‡ƒ“ŠJn0.2•bŒã‚ÉƒŒ[ƒU[ÆËI
+                    Invoke("AE_StartLaserStraight", 0.4f);
+                    break;
+                case AttackCategory.LaserSweep360:
+                    animator.SetTrigger("LaserAttack");
+                    Invoke("AE_StartLaser360", 0.4f);
+                    break;
+                case AttackCategory.LaserSweep90:
+                    animator.SetTrigger("LaserAttack");
+                    Invoke("AE_StartLaser90", 0.4f);
                     break;
             }
         }
 
-        // •ÛŒ¯ƒ^ƒCƒ}[i2.5•bŒã‚ÉŸ‚Ìs“®‚ğ‰ğ‹Öj
         yield return new WaitForSeconds(2.5f);
         isPerformingAction = false;
     }
@@ -243,10 +255,10 @@ public class BossRadagonAI : MonoBehaviour
     }
 
     // ===================================================
-    // š ŠeƒWƒƒƒ“ƒ‹—p Animation EventsiƒAƒjƒ[ƒVƒ‡ƒ“ƒCƒxƒ“ƒgj
+    // â˜… å„ã‚¸ãƒ£ãƒ³ãƒ«ç”¨ Animation Events / Invokeç”¨ãƒ¡ã‚½ãƒƒãƒ‰
     // ===================================================
 
-    // 1. ‹ßÚ”»’èi’ÊíE‹­UŒ‚j
+    // 1. è¿‘æ¥åˆ¤å®š
     public void AE_MeleeHit()
     {
         if (player == null) return;
@@ -258,28 +270,41 @@ public class BossRadagonAI : MonoBehaviour
         }
     }
 
-    // 2. ‰“‹——£UŒ‚iŒõ’e“™‚ğ”­Ëj
+    // 2. é è·é›¢æ”»æ’ƒï¼ˆå¼¾ã®ç”Ÿæˆ & é£›ç¿”ãƒ»ã‚ã‚Šè¾¼ã¿é˜²æ­¢å‡¦ç†è¿½åŠ ï¼‰
     public void AE_ShootProjectile()
     {
-        if (rangedAttack.projectilePrefab != null && rangedAttack.spawnPoint != null && player != null)
+        Transform spawnPoint = rangedAttack.spawnPoint != null ? rangedAttack.spawnPoint : transform;
+        if (rangedAttack.projectilePrefab != null && player != null)
         {
-            Vector3 targetDir = (player.position + Vector3.up * 1.0f - rangedAttack.spawnPoint.position).normalized;
-            Instantiate(rangedAttack.projectilePrefab, rangedAttack.spawnPoint.position, Quaternion.LookRotation(targetDir));
+            // ãƒœã‚¹æœ¬ä½“ã«å½“ãŸã£ã¦æ¶ˆãˆãªã„ã‚ˆã†å‰æ–¹ã«0.8mã‚ªãƒ•ã‚»ãƒƒãƒˆ
+            Vector3 spawnPos = spawnPoint.position + transform.forward * 0.8f;
+            Vector3 targetDir = (player.position + Vector3.up * 1.0f - spawnPos).normalized;
+
+            GameObject bullet = Instantiate(rangedAttack.projectilePrefab, spawnPos, Quaternion.LookRotation(targetDir));
+
+            // Rigidbody ãŒä»˜ã„ã¦ã„ã‚‹å ´åˆã¯é€Ÿåº¦ã‚’ä¸ãˆã‚‹
+            Rigidbody rb = bullet.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.velocity = targetDir * rangedAttack.projectileSpeed;
+            }
+
+            // 5ç§’å¾Œã«è‡ªå‹•æ¶ˆæ»…
+            Destroy(bullet, 5.0f);
         }
     }
 
-    // 3. ”ÍˆÍUŒ‚i‘«Œ³‚ÌÕŒ‚”gE’n–Ê”š”­j
+    // 3. ç¯„å›²æ”»æ’ƒï¼ˆå¾ã€…ã«ç¸®å°ãƒ»é€æ˜åŒ–ã—ã¦æ¶ˆãˆã‚‹ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆå‡¦ç†ï¼‰
     public void AE_AreaImpact()
     {
         Transform origin = (areaAttack.areaPoint != null) ? areaAttack.areaPoint : transform;
 
-        // VFXƒGƒtƒFƒNƒg”­¶
         if (areaAttack.areaVfxPrefab != null)
         {
-            Instantiate(areaAttack.areaVfxPrefab, origin.position, Quaternion.identity);
+            GameObject vfx = Instantiate(areaAttack.areaVfxPrefab, origin.position, Quaternion.identity);
+            StartCoroutine(FadeOutAndDestroy(vfx, 1.2f)); // 1.2ç§’ã‹ã‘ã¦æ»‘ã‚‰ã‹ã«æ¶ˆå»
         }
 
-        // ‹…ó”ÍˆÍ‚ÅƒvƒŒƒCƒ„[‚Öƒ_ƒ[ƒW
         Collider[] hits = Physics.OverlapSphere(origin.position, areaAttack.radius);
         foreach (var hit in hits)
         {
@@ -290,10 +315,77 @@ public class BossRadagonAI : MonoBehaviour
         }
     }
 
-    // 4. ƒŒ[ƒU[UŒ‚iÆËŠJnj
-    public void AE_StartLaser()
+    // ã‚¨ãƒ•ã‚§ã‚¯ãƒˆã‚’å¾ã€…ã«å°ã•ããƒ»è–„ãã—ãªãŒã‚‰æ¶ˆå»ã™ã‚‹ã‚³ãƒ«ãƒ¼ãƒãƒ³
+    private IEnumerator FadeOutAndDestroy(GameObject target, float fadeDuration)
     {
-        StartCoroutine(LaserRoutine());
+        if (target == null) yield break;
+
+        Vector3 originalScale = target.transform.localScale;
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>();
+        float timer = 0f;
+
+        while (timer < fadeDuration)
+        {
+            if (target == null) yield break;
+
+            timer += Time.deltaTime;
+            float progress = timer / fadeDuration;
+
+            // ã‚¹ã‚±ãƒ¼ãƒ«ã‚’å¾ã€…ã«å°ã•ãã™ã‚‹
+            target.transform.localScale = Vector3.Lerp(originalScale, Vector3.zero, progress);
+
+            // ãƒãƒ†ãƒªã‚¢ãƒ«ã®ã‚¢ãƒ«ãƒ•ã‚¡å€¤ï¼ˆé€æ˜åº¦ï¼‰ã‚’ä¸‹ã’ã‚‹
+            foreach (var rend in renderers)
+            {
+                if (rend != null && rend.material != null && rend.material.HasProperty("_Color"))
+                {
+                    Color c = rend.material.color;
+                    c.a = Mathf.Lerp(1f, 0f, progress);
+                    rend.material.color = c;
+                }
+            }
+
+            yield return null;
+        }
+
+        Destroy(target);
+    }
+
+    // 4. ãƒ¬ãƒ¼ã‚¶ãƒ¼æ”»æ’ƒ
+    // 1. ä¸€ç›´ç·šãƒ¬ãƒ¼ã‚¶ãƒ¼ï¼ˆå›è»¢ãªã—ï¼šè§’åº¦ 0åº¦ï¼‰
+    public void AE_StartLaserStraight()
+    {
+        Transform origin = (laserAttack.firingPoint != null) ? laserAttack.firingPoint : transform;
+        LaserBeam laserBeam = origin.GetComponent<LaserBeam>();
+        if (laserBeam != null)
+        {
+            // äºˆå…†0.8s, ç…§å°„æ™‚é–“, åŠå¾„, è·é›¢, ãƒ€ãƒ¡ãƒ¼ã‚¸, è§’åº¦0åº¦
+            laserBeam.FireLaser(0.8f, laserAttack.duration, 0.5f, laserAttack.maxDistance, laserAttack.damagePerTick, 0f);
+        }
+    }
+
+    // 2. 360åº¦è–™ãæ‰•ã„ãƒ¬ãƒ¼ã‚¶ãƒ¼ï¼ˆè§’åº¦ 360åº¦ï¼‰
+    public void AE_StartLaser360()
+    {
+        Transform origin = (laserAttack.firingPoint != null) ? laserAttack.firingPoint : transform;
+        LaserBeam laserBeam = origin.GetComponent<LaserBeam>();
+        if (laserBeam != null)
+        {
+            // äºˆå…†0.6s, ç…§å°„æ™‚é–“, åŠå¾„, è·é›¢, ãƒ€ãƒ¡ãƒ¼ã‚¸, è§’åº¦360åº¦
+            laserBeam.FireLaser(0.6f, laserAttack.duration, 0.5f, laserAttack.maxDistance, laserAttack.damagePerTick, 360f);
+        }
+    }
+
+    // 3. å‰æ–¹è–™ãæ‰•ã„ãƒ¬ãƒ¼ã‚¶ãƒ¼ï¼ˆè§’åº¦ 90åº¦ãƒ»æ‰‡å½¢ï¼‰
+    public void AE_StartLaser90()
+    {
+        Transform origin = (laserAttack.firingPoint != null) ? laserAttack.firingPoint : transform;
+        LaserBeam laserBeam = origin.GetComponent<LaserBeam>();
+        if (laserBeam != null)
+        {
+            // äºˆå…†0.6s, ç…§å°„æ™‚é–“, åŠå¾„, è·é›¢, ãƒ€ãƒ¡ãƒ¼ã‚¸, è§’åº¦90åº¦
+            laserBeam.FireLaser(0.6f, laserAttack.duration, 0.5f, laserAttack.maxDistance, laserAttack.damagePerTick, 90f);
+        }
     }
 
     private IEnumerator LaserRoutine()
@@ -318,7 +410,6 @@ public class BossRadagonAI : MonoBehaviour
                 laserAttack.laserLine.SetPosition(1, startPos + dir * laserAttack.maxDistance);
             }
 
-            // ƒŒ[ƒU[‚ÌƒŒƒCƒLƒƒƒXƒgƒqƒbƒg”»’è
             if (Physics.Raycast(startPos, dir, out RaycastHit hit, laserAttack.maxDistance))
             {
                 if (hit.collider.CompareTag("Player") && playerController != null)
@@ -333,7 +424,6 @@ public class BossRadagonAI : MonoBehaviour
         if (laserAttack.laserLine != null) laserAttack.laserLine.enabled = false;
     }
 
-    // ƒ‚[ƒVƒ‡ƒ“I—¹
     public void AE_OnActionEnd()
     {
         isPerformingAction = false;
@@ -341,7 +431,6 @@ public class BossRadagonAI : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        // ”ÍˆÍUŒ‚‚ÌƒfƒoƒbƒO•\¦iScene‰æ–Ê‚ÅÔŠÛ•\¦j
         if (areaAttack != null)
         {
             Gizmos.color = Color.yellow;

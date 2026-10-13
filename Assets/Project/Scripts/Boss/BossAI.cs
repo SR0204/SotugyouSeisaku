@@ -13,15 +13,14 @@ public class BossAI : MonoBehaviour
 
     [Header("=== ボス状態設定 ===")]
     public bool isPhase2 = false;
-    public float phase2HpThreshold = 0.5f; // HP50%でフェーズ2移行
+    public float phase2HpThreshold = 0.5f;
 
-    // 各種設定構造体
     [System.Serializable]
     public struct MeleeCombo
     {
         public string name;
-        public string animTrigger;      // アニメーションのトリガー名
-        public float attackRange;       // 技の発動可能距離
+        public string animTrigger;
+        public float attackRange;
         public float damage;
     }
 
@@ -37,11 +36,11 @@ public class BossAI : MonoBehaviour
     }
 
     [Header("=== 近接・緩急攻撃（槌・剣） ===")]
-    [SerializeField] private MeleeCombo quickCombo = new MeleeCombo { name = "出の早い2連撃", animTrigger = "AttackQuick", attackRange = 3.5f, damage = 25f };
-    [SerializeField] private MeleeCombo heavyDelayedSlam = new MeleeCombo { name = "超ディレイ振り下ろし", animTrigger = "AttackDelayed", attackRange = 4.0f, damage = 60f };
+    [SerializeField] private MeleeCombo quickCombo = new MeleeCombo { name = "通常近接", animTrigger = "Attack", attackRange = 3.5f, damage = 25f };
+    [SerializeField] private MeleeCombo heavyDelayedSlam = new MeleeCombo { name = "強攻撃", animTrigger = "HeavyAttack", attackRange = 4.0f, damage = 60f };
 
-    [Header("=== 範囲衝撃波（ラダゴン風叩きつけ） ===")]
-    [SerializeField] private AoEGroundSlam groundSlam = new AoEGroundSlam { name = "黄金の衝撃波", animTrigger = "SlamAoE", radius = 8.0f, damage = 50f };
+    [Header("=== 範囲衝撃波 ===")]
+    [SerializeField] private AoEGroundSlam groundSlam = new AoEGroundSlam { name = "範囲爆発", animTrigger = "AreaAttack", radius = 8.0f, damage = 50f };
 
     [Header("=== 遠距離・弾幕設定 ===")]
     [SerializeField] private GameObject bulletPrefab;
@@ -52,7 +51,6 @@ public class BossAI : MonoBehaviour
 
     private float attackTimer = 0f;
     private bool isPerformingAction = false;
-    private Vector3 currentTargetPos;
 
     void Start()
     {
@@ -72,12 +70,10 @@ public class BossAI : MonoBehaviour
     {
         if (player == null || isPerformingAction) return;
 
-        // フェーズチェック
         CheckPhaseTransition();
 
         float distance = Vector3.Distance(transform.position, player.position);
 
-        // 追跡処理
         if (agent != null && agent.isOnNavMesh)
         {
             if (distance > quickCombo.attackRange)
@@ -92,7 +88,6 @@ public class BossAI : MonoBehaviour
             }
         }
 
-        // 攻撃タイマー
         if (attackTimer > 0)
         {
             attackTimer -= Time.deltaTime;
@@ -100,7 +95,7 @@ public class BossAI : MonoBehaviour
         else
         {
             ChooseAction(distance);
-            attackTimer = 2.0f; // 次の攻撃までのインターバル
+            attackTimer = 2.0f;
         }
     }
 
@@ -108,11 +103,9 @@ public class BossAI : MonoBehaviour
     {
         if (!isPhase2 && bossHealth != null)
         {
-            // currentHp ➔ currentHealth、maxHp ➔ maxHealth に変更
             if (bossHealth.currentHealth / bossHealth.maxHealth <= phase2HpThreshold)
             {
                 isPhase2 = true;
-                // フェーズ2移行時のトリガー
                 if (animator != null) animator.SetTrigger("Phase2Transition");
             }
         }
@@ -122,31 +115,15 @@ public class BossAI : MonoBehaviour
     {
         List<string> availableTriggers = new List<string>();
 
-        // 【近距離】
-        if (distance <= quickCombo.attackRange)
-        {
-            if (!string.IsNullOrEmpty(quickCombo.animTrigger))
-                availableTriggers.Add(quickCombo.animTrigger);
-
-            if (!string.IsNullOrEmpty(heavyDelayedSlam.animTrigger))
-                availableTriggers.Add(heavyDelayedSlam.animTrigger);
-
-            if (!string.IsNullOrEmpty(groundSlam.animTrigger))
-                availableTriggers.Add(groundSlam.animTrigger);
-        }
-        // 【中・遠距離】
-        else
-        {
-            if (!string.IsNullOrEmpty(groundSlam.animTrigger))
-                availableTriggers.Add(groundSlam.animTrigger);
-
-            if (!string.IsNullOrEmpty(quickCombo.animTrigger))
-                availableTriggers.Add(quickCombo.animTrigger);
-        }
+        // 全攻撃トリガーを一度リストに入れてランダム抽選（テスト用）
+        availableTriggers.Add(quickCombo.animTrigger);      // "Attack"
+        availableTriggers.Add(heavyDelayedSlam.animTrigger); // "HeavyAttack"
+        availableTriggers.Add(groundSlam.animTrigger);       // "AreaAttack"
+        availableTriggers.Add("RangedAttack");
+        availableTriggers.Add("LaserAttack");
 
         if (availableTriggers.Count == 0) return;
 
-        // ランダムに攻撃トリガーを選んで実行
         string selectedTrigger = availableTriggers[Random.Range(0, availableTriggers.Count)];
         ExecuteAttack(selectedTrigger);
     }
@@ -158,35 +135,63 @@ public class BossAI : MonoBehaviour
 
         LookAtPlayer();
         if (animator != null) animator.SetTrigger(animTrigger);
+
+        // ★ モーションの振り終わりに合わせたタイミングで発動させる調整
+        if (animTrigger == quickCombo.animTrigger)
+        {
+            Invoke("AE_MeleeHit", 0.6f); // 手を振り下ろす瞬間に合わせる
+        }
+        else if (animTrigger == heavyDelayedSlam.animTrigger)
+        {
+            Invoke("AE_MeleeHit", 0.9f); // ため動作の後
+        }
+        else if (animTrigger == groundSlam.animTrigger)
+        {
+            Invoke("AE_GroundSlamImpact", 0.7f); // 地面を殴った瞬間
+        }
+        else if (animTrigger == "RangedAttack")
+        {
+            Invoke("AE_FireRangedBullet", 0.5f); // 弾発射
+        }
+        else if (animTrigger == "LaserAttack")
+        {
+            Invoke("AE_StartLaser", 0.4f); // レーザー照射
+        }
+
+        // 行動解除のタイマー
+        CancelInvoke("ResetActionState");
+        Invoke("ResetActionState", 2.5f);
     }
 
-    // ===================================================
-    // ★ アニメーションイベント（Animation Events）から呼ばれるメソッド
-    // ===================================================
+    private void ResetActionState()
+    {
+        isPerformingAction = false;
+    }
 
-    // アニメーション内で「武器が届く瞬間」に呼び出す
     public void AE_MeleeHit()
     {
         if (player == null) return;
         float dist = Vector3.Distance(transform.position, player.position);
-        if (dist <= quickCombo.attackRange + 1.0f)
+        if (dist <= quickCombo.attackRange + 1.5f)
         {
             if (playerController != null) playerController.TakeDamage(quickCombo.damage);
         }
     }
 
-    // 叩きつけ（地面を殴った瞬間）に呼び出す
     public void AE_GroundSlamImpact()
     {
         if (groundSlam.shockwavePrefab != null)
         {
             Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position + transform.forward * 2f;
-            spawnPos.y = 0.05f; // 地面スレスレ
-            Instantiate(groundSlam.shockwavePrefab, spawnPos, transform.rotation);
+            spawnPos.y = 0.05f;
+
+            // 生成したエフェクトを変数に保持
+            GameObject vfx = Instantiate(groundSlam.shockwavePrefab, spawnPos, transform.rotation);
+
+            Destroy(vfx, 1.5f);
         }
     }
 
-    // 弾を発射する瞬間に呼び出す
     public void AE_FireRangedBullet()
     {
         if (bulletPrefab == null) return;
@@ -195,26 +200,20 @@ public class BossAI : MonoBehaviour
         Instantiate(bulletPrefab, spawnPos, rot);
     }
 
-    // 4. レーザー攻撃（照射開始）
     public void AE_StartLaser()
     {
         Transform point = firePoint != null ? firePoint : transform;
-
-        // firePoint（CastPoint）に付いている LaserBeam スクリプトを探して実行
         LaserBeam laserBeam = point.GetComponent<LaserBeam>();
         if (laserBeam != null)
         {
-            // FireLaser(予兆時間, 本照射時間, レーザー太さ, 距離, 毎秒ダメージ, 回転角度)
             laserBeam.FireLaser(0.5f, 2.0f, 0.5f, 15f, 30f, 360f);
         }
         else if (laserPrefab != null)
         {
-            // LaserBeamが無い場合はプレハブを生成
             Instantiate(laserPrefab, point.position, point.rotation);
         }
     }
 
-    // アニメーションが完全に終了した瞬間に呼び出す（行動可能に戻す）
     public void AE_OnActionEnd()
     {
         isPerformingAction = false;
@@ -228,6 +227,7 @@ public class BossAI : MonoBehaviour
 
     private void LookAtPlayer()
     {
+        if (player == null) return;
         Vector3 direction = (player.position - transform.position).normalized;
         direction.y = 0;
         if (direction != Vector3.zero)

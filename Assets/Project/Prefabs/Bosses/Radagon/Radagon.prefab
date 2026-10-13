@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5052889801690882290}
+  - component: {fileID: 2079818890893883124}
   m_Layer: 0
   m_Name: CastPoint
   m_TagString: Untagged
@@ -31,6 +32,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7899691983597904983}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2079818890893883124
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 130740192360163817}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d7ceb827fa520e448620bb78636dbcc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lineRenderer: {fileID: 3843838150984086227}
+  warningColor: {r: 1, g: 0, b: 0, a: 1}
+  attackColor: {r: 0, g: 1, b: 1, a: 1}
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1 &4345392967253956360
 GameObject:
   m_ObjectHideFlags: 0
@@ -175,6 +194,7 @@ MonoBehaviour:
     minRange: 4
     projectilePrefab: {fileID: 4799840430381531852, guid: 376475fe1cd687944b85b47a58a32a04, type: 3}
     spawnPoint: {fileID: 5052889801690882290}
+    projectileSpeed: 15
   areaAttack:
     damage: 20
     triggerRange: 5
