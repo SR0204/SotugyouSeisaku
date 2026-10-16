@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 130740192360163817}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.106, y: 1.417, z: -0.547}
+  m_LocalPosition: {x: -0.106, y: 1.435, z: -0.124}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -108,13 +108,13 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 2.5
+  m_Height: 2
   m_Radius: 0.4
   m_SlopeLimit: 45
   m_StepOffset: 0.1
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 1.25, z: 0}
+  m_Center: {x: 0, y: 1, z: 0}
 --- !u!195 &5144243544834992792
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -203,10 +203,20 @@ MonoBehaviour:
     areaPoint: {fileID: 5052889801690882290}
   laserAttack:
     damagePerTick: 15
-    maxDistance: 15
+    maxDistance: 50
     duration: 2
     laserLine: {fileID: 3843838150984086227}
     firingPoint: {fileID: 5052889801690882290}
+  attackWeights:
+    meleeNormalWeight: 20
+    meleeHeavyWeight: 10
+    rangedSingleWeight: 10
+    rangedRapidWeight: 15
+    rangedSpreadWeight: 15
+    areaImpactWeight: 5
+    laserStraightWeight: 10
+    laserSweep360Weight: 10
+    laserSweep90Weight: 5
   attackInterval: 2
   isPhase2: 1
   phase2HpThreshold: 0.5
@@ -218,7 +228,7 @@ LineRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4345392967253956360}
-  m_Enabled: 0
+  m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -328,7 +338,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 89ac45f80f4c0e54bb38d1a46516c354, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 0.01
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 89ac45f80f4c0e54bb38d1a46516c354, type: 3}
       propertyPath: m_LocalPosition.z
@@ -362,9 +372,25 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -3480699329000672020, guid: 89ac45f80f4c0e54bb38d1a46516c354, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 89ac45f80f4c0e54bb38d1a46516c354, type: 3}
       propertyPath: m_Name
       value: BossModel
+      objectReference: {fileID: 0}
+    - target: {fileID: 2559285840627121667, guid: 89ac45f80f4c0e54bb38d1a46516c354, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5465940246521907071, guid: 89ac45f80f4c0e54bb38d1a46516c354, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8169382868667117632, guid: 89ac45f80f4c0e54bb38d1a46516c354, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 5866666021909216657, guid: 89ac45f80f4c0e54bb38d1a46516c354, type: 3}

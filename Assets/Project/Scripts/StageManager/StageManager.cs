@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,29 +6,29 @@ using TMPro;
 
 public class StageManager : MonoBehaviour
 {
-    [Header("ƒvƒŒƒnƒuİ’è")]
-    [Tooltip("’Êí‚ÌƒAƒŠ[ƒiƒvƒŒƒnƒuiƒ‰ƒ“ƒ_ƒ€‘Io—pj")]
+    [Header("ãƒ—ãƒ¬ãƒãƒ–è¨­å®š")]
+    [Tooltip("é€šå¸¸ã®ã‚¢ãƒªãƒ¼ãƒŠãƒ—ãƒ¬ãƒãƒ–ï¼ˆãƒ©ãƒ³ãƒ€ãƒ é¸å‡ºç”¨ï¼‰")]
     public GameObject[] arenaPrefabs;
 
-    [Tooltip("“Á’èƒ{ƒXê—p‚ÌƒAƒŠ[ƒii—á: ƒRƒƒVƒAƒ€‚È‚ÇjB‹ó—“‚È‚ç’ÊíƒAƒŠ[ƒi‚©‚çƒ‰ƒ“ƒ_ƒ€‘Io")]
-    public GameObject[] bossSpecificArenas; // š ƒ{ƒX‚²‚Æ‚ÌŒÅ’èƒXƒe[ƒW—piƒ{ƒX‚Æ“¯‚¶—v‘f”‚É‚·‚éj
+    [Tooltip("ç‰¹å®šãƒœã‚¹å°‚ç”¨ã®ã‚¢ãƒªãƒ¼ãƒŠï¼ˆä¾‹: ã‚³ãƒ­ã‚·ã‚¢ãƒ ãªã©ï¼‰ã€‚ç©ºæ¬„ãªã‚‰é€šå¸¸ã‚¢ãƒªãƒ¼ãƒŠã‹ã‚‰ãƒ©ãƒ³ãƒ€ãƒ é¸å‡º")]
+    public GameObject[] bossSpecificArenas;
 
-    public GameObject restAreaPrefab;           // ‹x‘§ê—pƒGƒŠƒA
+    public GameObject restAreaPrefab;           // ä¼‘æ¯å°‚ç”¨ã‚¨ãƒªã‚¢
     public GameObject playerPrefab;
     public GameObject[] bossPrefabs;
     public GameObject uiCanvasPrefab;
 
-    [Header("¶¬ˆÊ’uİ’è")]
-    public Vector3 stagePosition = new Vector3(0, -0.5f, 0);
-    public Vector3 playerPosition = new Vector3(0, 0.1f, 0);
-    public Vector3 bossPosition = new Vector3(0, 1f, 10f);
+    [Header("ç”Ÿæˆä½ç½®è¨­å®š")]
+    public Vector3 stagePosition = Vector3.zero;        // â˜… (0, 0, 0) ã«çµ±ä¸€
+    public Vector3 playerPosition = Vector3.zero;       // â˜… (0, 0, 0) ã«çµ±ä¸€
+    public Vector3 bossPosition = new Vector3(0, 0, 10f); // â˜… Y=0 ã«çµ±ä¸€ï¼ˆZè»¸ã®ã¿è·é›¢ã‚’ä¿ã¤ï¼‰
 
     private GameObject currentStageInstance;
     private GameObject currentBossInstance;
     private GameObject currentPlayerInstance;
     private PlayerController playerCtrl;
 
-    // UIQÆ—p
+    // UIå‚ç…§ç”¨
     private Slider healthSlider;
     private Slider staminaSlider;
     private TextMeshProUGUI estusText;
@@ -45,7 +45,7 @@ public class StageManager : MonoBehaviour
 
     void InitializeStage()
     {
-        // 1. UI Canvas ‚ğ¶¬
+        // 1. UI Canvas ã‚’ç”Ÿæˆ
         if (uiCanvasPrefab != null)
         {
             GameObject canvasObj = Instantiate(uiCanvasPrefab);
@@ -79,7 +79,7 @@ public class StageManager : MonoBehaviour
                 }
             }
 
-            // ƒ{ƒX‘I‘ğƒ{ƒ^ƒ“©“®“o˜^
+            // ãƒœã‚¹é¸æŠãƒœã‚¿ãƒ³è‡ªå‹•ç™»éŒ²
             Transform panelObj = canvasObj.transform.Find("BossSelectPanel");
             if (panelObj != null)
             {
@@ -106,10 +106,10 @@ public class StageManager : MonoBehaviour
             }
         }
 
-        // 2. Player ¶¬
+        // 2. Player ç”Ÿæˆ
         SpawnPlayer(healthSlider, staminaSlider, estusText);
 
-        // 3. Å‰‚Í‹x‘§ƒGƒŠƒA‚ğ•\¦
+        // 3. æœ€åˆã¯ä¼‘æ¯ã‚¨ãƒªã‚¢ã‚’è¡¨ç¤º
         ShowRestArea();
     }
 
@@ -119,6 +119,7 @@ public class StageManager : MonoBehaviour
 
         if (playerPrefab != null)
         {
+            // ä»®ä½ç½®ã§ç”Ÿæˆ
             currentPlayerInstance = Instantiate(playerPrefab, playerPosition, Quaternion.identity);
             playerCtrl = currentPlayerInstance.GetComponent<PlayerController>();
 
@@ -137,6 +138,7 @@ public class StageManager : MonoBehaviour
         }
     }
 
+    // â˜… ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®è‡ªå‹•å®‰å…¨æ¥åœ°ãƒ†ãƒ¬ãƒãƒ¼ãƒˆ
     private void TeleportPlayer(Vector3 targetPos)
     {
         if (currentPlayerInstance == null) return;
@@ -152,7 +154,15 @@ public class StageManager : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        currentPlayerInstance.transform.position = targetPos;
+        // â˜… çœŸä¸‹ã®åºŠã‚’Raycastã§æ¤œçŸ¥ã—ã€ã™ã‚ŠæŠœã‘ãªã„é«˜ã•ã«ç€åœ°ã•ã›ã‚‹
+        Vector3 finalPos = targetPos;
+        RaycastHit hit;
+        if (Physics.Raycast(targetPos + Vector3.up * 10f, Vector3.down, out hit, 50f))
+        {
+            finalPos.y = hit.point.y + 0.1f; // åºŠã®ä¸Šã«ç¢ºå®Ÿã«ä¹—ã›ã‚‹
+        }
+
+        currentPlayerInstance.transform.position = finalPos;
 
         if (cc != null) cc.enabled = true;
     }
@@ -174,7 +184,7 @@ public class StageManager : MonoBehaviour
             bossHPSlider.gameObject.SetActive(false);
         }
 
-        Debug.Log("ƒ{ƒXŒ‚”jI‹x‘§ƒGƒŠƒA‚ğ•\¦‚µ‚Ü‚·B");
+        Debug.Log("ãƒœã‚¹æ’ƒç ´ï¼ä¼‘æ¯ã‚¨ãƒªã‚¢ã‚’è¡¨ç¤ºã—ã¾ã™ã€‚");
         ShowRestArea();
     }
 
@@ -188,6 +198,7 @@ public class StageManager : MonoBehaviour
         if (restAreaPrefab != null)
         {
             currentStageInstance = Instantiate(restAreaPrefab, stagePosition, Quaternion.identity);
+            Physics.SyncTransforms(); // åœ°å½¢ç‰©ç†ã®å³æ™‚æ›´æ–°
         }
 
         TeleportPlayer(playerPosition);
@@ -202,7 +213,7 @@ public class StageManager : MonoBehaviour
         }
     }
 
-    // š ƒ{ƒX‘I‘ğ•ƒAƒŠ[ƒi¶¬iŒÅ’èƒAƒŠ[ƒi—Dæ”»’èj
+    // â˜… ãƒœã‚¹é¸æŠï¼†ã‚¢ãƒªãƒ¼ãƒŠç”Ÿæˆ
     public void SelectAndStartBoss(int bossIndex)
     {
         if (bossIndex < 0 || bossIndex >= bossPrefabs.Length) return;
@@ -219,36 +230,69 @@ public class StageManager : MonoBehaviour
             Destroy(currentStageInstance);
         }
 
-        // ---------------------------------------------------------
-        // š ƒAƒŠ[ƒi‚ÌŒˆ’èƒƒWƒbƒN
-        // ---------------------------------------------------------
+        // ã‚¢ãƒªãƒ¼ãƒŠã®æ±ºå®š
         GameObject selectedArenaPrefab = null;
 
-        // 1. ‚à‚µuƒ{ƒXê—pƒAƒŠ[ƒiv‚ªİ’è‚³‚ê‚Ä‚¢‚ê‚Î‚»‚ê‚ğ—Dæ
         if (bossSpecificArenas != null && bossIndex < bossSpecificArenas.Length && bossSpecificArenas[bossIndex] != null)
         {
             selectedArenaPrefab = bossSpecificArenas[bossIndex];
         }
-        // 2. İ’è‚³‚ê‚Ä‚¢‚È‚¯‚ê‚ÎA]—ˆ’Ê‚èƒ‰ƒ“ƒ_ƒ€‚Å‘I‚Ô
         else if (arenaPrefabs != null && arenaPrefabs.Length > 0)
         {
             int randomIndex = Random.Range(0, arenaPrefabs.Length);
             selectedArenaPrefab = arenaPrefabs[randomIndex];
         }
 
-        // ƒAƒŠ[ƒi‚ğ¶¬
+        // ã‚¢ãƒªãƒ¼ãƒŠç”Ÿæˆ
         if (selectedArenaPrefab != null)
         {
             currentStageInstance = Instantiate(selectedArenaPrefab, stagePosition, Quaternion.identity);
+            Physics.SyncTransforms(); // â˜… ç”Ÿæˆã—ãŸã‚¢ãƒªãƒ¼ãƒŠã®ç‰©ç†ã‚³ãƒ©ã‚¤ãƒ€ãƒ¼ã‚’å³æ™‚åŒæœŸ
         }
-        // ---------------------------------------------------------
 
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’ç€åœ°ãƒ†ãƒ¬ãƒãƒ¼ãƒˆ
         TeleportPlayer(playerPosition);
 
+        // ãƒœã‚¹ç”Ÿæˆå‡¦ç†
         if (bossPrefabs[bossIndex] != null)
         {
+            // 1. ç”Ÿæˆ
             currentBossInstance = Instantiate(bossPrefabs[bossIndex], bossPosition, Quaternion.identity);
 
+            // 2. ç§»å‹•ã‚’é˜»å®³ã™ã‚‹ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’ä¸€æ™‚åœæ­¢
+            CharacterController cc = currentBossInstance.GetComponent<CharacterController>();
+            UnityEngine.AI.NavMeshAgent agent = currentBossInstance.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            Collider bossCol = currentBossInstance.GetComponent<Collider>();
+
+            if (cc != null) cc.enabled = false;
+            if (agent != null) agent.enabled = false;
+            if (bossCol != null) bossCol.enabled = false;
+
+            // 3. çœŸä¸‹ã®åºŠã®é«˜ã•ã‚’ Raycast ã§å–å¾—
+            Vector3 spawnPos = bossPosition;
+            RaycastHit hit;
+            if (Physics.Raycast(bossPosition + Vector3.up * 20f, Vector3.down, out hit, 100f))
+            {
+                // â˜… åºŠã®è¡¨é¢ï¼ˆhit.point.yï¼‰ã‹ã‚‰å¤§ãã‚ã«æŒã¡ä¸Šã’ã‚‹ï¼ˆä¾‹: + 0.5f ã€œ 1.0fï¼‰
+                // CharacterController ã‚„ NavMesh ã®æ¥åœ°åˆ¤å®šã§è‡ªç„¶ã«åºŠã®ä¸Šã«ç€åœ°ã—ã¾ã™
+                spawnPos.y = hit.point.y + 0.5f;
+            }
+
+            // 4. ãƒˆãƒ©ãƒ³ã‚¹ãƒ•ã‚©ãƒ¼ãƒ ã®ä½ç½®ã‚’å¤‰æ›´
+            currentBossInstance.transform.position = spawnPos;
+
+            // 5. å…ˆã« CharacterController / Collider ã‚’æˆ»ã™
+            if (bossCol != null) bossCol.enabled = true;
+            if (cc != null) cc.enabled = true;
+
+            // 6. æœ€å¾Œã« NavMeshAgent ã‚’ Warp ã—ã¦æœ‰åŠ¹åŒ–
+            if (agent != null)
+            {
+                agent.Warp(spawnPos);
+                agent.enabled = true;
+            }
+
+            // 7. UIè¨­å®š
             BossHealth bossHealth = currentBossInstance.GetComponent<BossHealth>();
             if (bossHealth != null && bossHPSlider != null)
             {
@@ -267,7 +311,7 @@ public class StageManager : MonoBehaviour
             playerCtrl.currentHealth = playerCtrl.maxHealth;
             playerCtrl.currentEstusCount = playerCtrl.maxEstusCount;
             playerCtrl.TakeDamage(0);
-            Debug.Log("‹x‘§Š®—¹FHP‚ÆƒGƒXƒg•r‚ª‘S‰ñ•œ‚µ‚Ü‚µ‚½I");
+            Debug.Log("ä¼‘æ¯å®Œäº†ï¼šHPã¨ã‚¨ã‚¹ãƒˆç“¶ãŒå…¨å›å¾©ã—ã¾ã—ãŸï¼");
         }
     }
 
