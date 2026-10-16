@@ -70,35 +70,75 @@ public class BossRadagonAI : MonoBehaviour
         public Transform firingPoint;
     }
 
-    // ★ 各攻撃の抽選確率（重み）設定用構造体
+    // ★ 各攻撃の有効/無効フラグ ＆ 発生確率（重み）設定用構造体
     [System.Serializable]
     public class AttackProbabilities
     {
         [Header("--- 近接攻撃 ---")]
+        [Tooltip("通常近接攻撃を使用するか")]
+        public bool enableMeleeNormal = true;
         [Tooltip("通常近接攻撃の発生確率（重み）")]
         public float meleeNormalWeight = 20f;
+
+        [Tooltip("強近接攻撃を使用するか")]
+        public bool enableMeleeHeavy = true;
         [Tooltip("強近接攻撃の発生確率（重み）")]
         public float meleeHeavyWeight = 15f;
 
         [Header("--- 遠距離（弾）攻撃 ---")]
+        [Tooltip("単発弾を使用するか")]
+        public bool enableRangedSingle = true;
         [Tooltip("単発弾の発生確率（重み）")]
         public float rangedSingleWeight = 10f;
+
+        [Tooltip("連射弾を使用するか")]
+        public bool enableRangedRapid = true;
         [Tooltip("連射弾の発生確率（重み）")]
         public float rangedRapidWeight = 10f;
+
+        [Tooltip("拡散弾を使用するか")]
+        public bool enableRangedSpread = true;
         [Tooltip("拡散弾の発生確率（重み）")]
         public float rangedSpreadWeight = 10f;
 
         [Header("--- 範囲攻撃 ---")]
+        [Tooltip("範囲爆破攻撃を使用するか")]
+        public bool enableAreaImpact = true;
         [Tooltip("範囲爆破攻撃の発生確率（重み）")]
         public float areaImpactWeight = 15f;
 
         [Header("--- レーザー攻撃 ---")]
+        [Tooltip("直線レーザーを使用するか")]
+        public bool enableLaserStraight = true;
         [Tooltip("直線レーザーの発生確率（重み）")]
         public float laserStraightWeight = 10f;
+
+        [Tooltip("360度レーザーを使用するか")]
+        public bool enableLaserSweep360 = true;
         [Tooltip("360度レーザーの発生確率（重み）")]
         public float laserSweep360Weight = 5f;
+
+        [Tooltip("90度レーザーを使用するか")]
+        public bool enableLaserSweep90 = true;
         [Tooltip("90度レーザーの発生確率（重み）")]
         public float laserSweep90Weight = 5f;
+    }
+
+    // ★ 追加：分裂（部位切断/サブボス生成）ギミック設定
+    [System.Serializable]
+    public class BossSplitSettings
+    {
+        [Tooltip("分裂を発生させるHPの割合（0.5 = 50%）")]
+        public float splitHpThreshold = 0.5f;
+
+        [Tooltip("出現させるサブボス（切断部位）のプレハブ")]
+        public GameObject subBossPrefab;
+
+        [Tooltip("本体からの出現オフセット位置")]
+        public Vector3 spawnOffset = new Vector3(3f, 0f, 0f);
+
+        [Tooltip("出現時のVFXエフェクト（任意）")]
+        public GameObject spawnVfxPrefab;
     }
 
     // ==========================================
@@ -119,6 +159,9 @@ public class BossRadagonAI : MonoBehaviour
     [Header("=== 5. 各攻撃の発生確率（重み）設定 ===")]
     public AttackProbabilities attackWeights;
 
+    [Header("=== 6. ★ 分裂（百足のデーモン風）設定 ===")]
+    public BossSplitSettings splitSettings;
+
     [Header("=== 共通・フェーズ設定 ===")]
     [Tooltip("攻撃と攻撃の間のインターバル時間")]
     public float attackInterval = 2.0f;
@@ -127,6 +170,7 @@ public class BossRadagonAI : MonoBehaviour
 
     private float attackTimer = 0f;
     private bool isPerformingAction = false;
+    private bool hasSplit = false; // ★ 1度だけ分裂させるためのフラグ
     private AttackCategory currentAttack = AttackCategory.None;
 
     public enum AttackCategory
@@ -157,6 +201,7 @@ public class BossRadagonAI : MonoBehaviour
         }
 
         isPerformingAction = false;
+        hasSplit = false;
     }
 
     void Update()
@@ -164,6 +209,7 @@ public class BossRadagonAI : MonoBehaviour
         if (player == null || isPerformingAction) return;
 
         CheckPhaseTransition();
+        CheckBossSplit(); // ★ 分裂条件の毎フレーム監視
 
         float distance = Vector3.Distance(transform.position, player.position);
 
@@ -209,21 +255,78 @@ public class BossRadagonAI : MonoBehaviour
         }
     }
 
-    // ★ 重み付けを用いた確率判定で次の攻撃を決定
+    // ★ 追加：HP50%以下になった時に部位切断/サブボスを生成する処理
+    private void CheckBossSplit()
+    {
+        if (!hasSplit && bossHealth != null && bossHealth.maxHealth > 0)
+        {
+            float currentHpPercent = bossHealth.currentHealth / bossHealth.maxHealth;
+
+            if (currentHpPercent <= splitSettings.splitHpThreshold)
+            {
+                hasSplit = true;
+                ExecuteBossSplit();
+            }
+        }
+    }
+
+    // ★ サブボスの生成（スポーン）実行処理
+    private void ExecuteBossSplit()
+    {
+        Debug.Log("<color=yellow>【百足のデーモン風ギミック】ボスが部位切断し、サブボスが分裂出現しました！</color>");
+
+        if (splitSettings.subBossPrefab != null)
+        {
+            // 本体の回転に合わせたオフセット位置を算出
+            Vector3 spawnPos = transform.position + transform.TransformDirection(splitSettings.spawnOffset);
+
+            // サブボスを生成
+            GameObject subBoss = Instantiate(splitSettings.subBossPrefab, spawnPos, transform.rotation);
+
+            // 出現エフェクト（VFX）があれば生成
+            if (splitSettings.spawnVfxPrefab != null)
+            {
+                Instantiate(splitSettings.spawnVfxPrefab, spawnPos, Quaternion.identity);
+            }
+        }
+        else
+        {
+            Debug.LogWarning("BossRadagonAI: SubBossPrefab が Inspector 上で未割り当てです！");
+        }
+    }
+
+    // ★ 重み付けを用いた確率判定で次の攻撃を決定（ON/OFFチェック機能付き）
     private void ChooseAndExecuteAttack(float distance)
     {
         Dictionary<AttackCategory, float> attackPool = new Dictionary<AttackCategory, float>();
 
-        // 設定された重み（確率）をプールに追加（0以下なら候補に入れない）
-        if (attackWeights.meleeNormalWeight > 0) attackPool.Add(AttackCategory.MeleeNormal, attackWeights.meleeNormalWeight);
-        if (attackWeights.meleeHeavyWeight > 0) attackPool.Add(AttackCategory.MeleeHeavy, attackWeights.meleeHeavyWeight);
-        if (attackWeights.rangedSingleWeight > 0) attackPool.Add(AttackCategory.Ranged, attackWeights.rangedSingleWeight);
-        if (attackWeights.rangedRapidWeight > 0) attackPool.Add(AttackCategory.RangedRapid, attackWeights.rangedRapidWeight);
-        if (attackWeights.rangedSpreadWeight > 0) attackPool.Add(AttackCategory.RangedSpread, attackWeights.rangedSpreadWeight);
-        if (attackWeights.areaImpactWeight > 0) attackPool.Add(AttackCategory.Area, attackWeights.areaImpactWeight);
-        if (attackWeights.laserStraightWeight > 0) attackPool.Add(AttackCategory.LaserStraight, attackWeights.laserStraightWeight);
-        if (attackWeights.laserSweep360Weight > 0) attackPool.Add(AttackCategory.LaserSweep360, attackWeights.laserSweep360Weight);
-        if (attackWeights.laserSweep90Weight > 0) attackPool.Add(AttackCategory.LaserSweep90, attackWeights.laserSweep90Weight);
+        // チェックが入っており(true)、重みが0より大きい場合のみ候補に追加
+        if (attackWeights.enableMeleeNormal && attackWeights.meleeNormalWeight > 0)
+            attackPool.Add(AttackCategory.MeleeNormal, attackWeights.meleeNormalWeight);
+
+        if (attackWeights.enableMeleeHeavy && attackWeights.meleeHeavyWeight > 0)
+            attackPool.Add(AttackCategory.MeleeHeavy, attackWeights.meleeHeavyWeight);
+
+        if (attackWeights.enableRangedSingle && attackWeights.rangedSingleWeight > 0)
+            attackPool.Add(AttackCategory.Ranged, attackWeights.rangedSingleWeight);
+
+        if (attackWeights.enableRangedRapid && attackWeights.rangedRapidWeight > 0)
+            attackPool.Add(AttackCategory.RangedRapid, attackWeights.rangedRapidWeight);
+
+        if (attackWeights.enableRangedSpread && attackWeights.rangedSpreadWeight > 0)
+            attackPool.Add(AttackCategory.RangedSpread, attackWeights.rangedSpreadWeight);
+
+        if (attackWeights.enableAreaImpact && attackWeights.areaImpactWeight > 0)
+            attackPool.Add(AttackCategory.Area, attackWeights.areaImpactWeight);
+
+        if (attackWeights.enableLaserStraight && attackWeights.laserStraightWeight > 0)
+            attackPool.Add(AttackCategory.LaserStraight, attackWeights.laserStraightWeight);
+
+        if (attackWeights.enableLaserSweep360 && attackWeights.laserSweep360Weight > 0)
+            attackPool.Add(AttackCategory.LaserSweep360, attackWeights.laserSweep360Weight);
+
+        if (attackWeights.enableLaserSweep90 && attackWeights.laserSweep90Weight > 0)
+            attackPool.Add(AttackCategory.LaserSweep90, attackWeights.laserSweep90Weight);
 
         if (attackPool.Count == 0) return;
 
@@ -301,6 +404,38 @@ public class BossRadagonAI : MonoBehaviour
                     break;
             }
         }
+        else
+        {
+            // アニメーターが付いていないオブジェクト（Cube等のモック）でも攻撃判定が発生するようにフォールバック処理
+            switch (attack)
+            {
+                case AttackCategory.MeleeNormal:
+                case AttackCategory.MeleeHeavy:
+                    Invoke("AE_MeleeHit", 0.5f);
+                    break;
+                case AttackCategory.Ranged:
+                    Invoke("AE_ShootProjectile", 0.5f);
+                    break;
+                case AttackCategory.RangedRapid:
+                    Invoke("AE_ShootProjectileRapid", 0.5f);
+                    break;
+                case AttackCategory.RangedSpread:
+                    Invoke("AE_ShootProjectileSpread", 0.5f);
+                    break;
+                case AttackCategory.Area:
+                    Invoke("AE_AreaImpact", 0.5f);
+                    break;
+                case AttackCategory.LaserStraight:
+                    Invoke("AE_StartLaserStraight", 0.4f);
+                    break;
+                case AttackCategory.LaserSweep360:
+                    Invoke("AE_StartLaser360", 0.4f);
+                    break;
+                case AttackCategory.LaserSweep90:
+                    Invoke("AE_StartLaser90", 0.4f);
+                    break;
+            }
+        }
 
         yield return new WaitForSeconds(2.5f);
         isPerformingAction = false;
@@ -321,29 +456,27 @@ public class BossRadagonAI : MonoBehaviour
     // ★ 各ジャンル用 Animation Events / Invoke用メソッド
     // ===================================================
 
-    /// 1. 近接判定（壁越しヒット防止機能付き）
+    /// 1. 近接判定（壁越しヒット防止機能 ＆ Trigger無視対応）
     public void AE_MeleeHit()
     {
         if (player == null) return;
         float dist = Vector3.Distance(transform.position, player.position);
         if (dist <= meleeAttack.attackRange + 1.5f && playerController != null)
         {
-            // --- 視線（Line of Sight）判定を追加 ---
-            Vector3 originPos = transform.position + Vector3.up * 1.0f; // ボスの胸の高さ
+            Vector3 originPos = transform.position + Vector3.up * 1.0f; // 胸の高さ
             Vector3 targetPos = player.position + Vector3.up * 1.0f;     // プレイヤーの胸の高さ
             Vector3 dir = (targetPos - originPos).normalized;
             float checkDist = Vector3.Distance(originPos, targetPos);
 
-            // レイを飛ばして最初に当たったのがプレイヤー以外（壁や柱）なら攻撃を遮蔽
-            if (Physics.Raycast(originPos, dir, out RaycastHit hit, checkDist))
+            // ★ QueryTriggerInteraction.Ignore を追加して Trigger コライダー（自分自身）を無視
+            if (Physics.Raycast(originPos, dir, out RaycastHit hit, checkDist, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
             {
                 if (!hit.collider.CompareTag("Player"))
                 {
-                    // 壁に防がれたためダメージを与えない
+                    // 壁や障害物に防がれたためダメージを与えない
                     return;
                 }
             }
-            // ------------------------------------
 
             float dmg = (currentAttack == AttackCategory.MeleeHeavy) ? meleeAttack.heavyDamage : meleeAttack.damage;
             playerController.TakeDamage(dmg);
@@ -401,7 +534,7 @@ public class BossRadagonAI : MonoBehaviour
         }
     }
 
-    // 3. 範囲攻撃（壁越しヒット防止機能付き）
+    // 3. 範囲攻撃（壁越しヒット防止機能 ＆ Trigger無視対応）
     public void AE_AreaImpact()
     {
         Transform origin = (areaAttack.areaPoint != null) ? areaAttack.areaPoint : transform;
@@ -417,22 +550,19 @@ public class BossRadagonAI : MonoBehaviour
         {
             if (hit.CompareTag("Player") && playerController != null)
             {
-                // --- 視線（Line of Sight）判定を追加 ---
-                Vector3 originPos = origin.position + Vector3.up * 0.5f; // 爆発地点の少し上
+                Vector3 originPos = origin.position + Vector3.up * 0.5f;
                 Vector3 targetPos = hit.transform.position + Vector3.up * 1.0f;
                 Vector3 dir = (targetPos - originPos).normalized;
                 float checkDist = Vector3.Distance(originPos, targetPos);
 
-                // 爆発地点からプレイヤーまでの間に壁があれば爆風を遮断
-                if (Physics.Raycast(originPos, dir, out RaycastHit hitInfo, checkDist))
+                // ★ QueryTriggerInteraction.Ignore を追加
+                if (Physics.Raycast(originPos, dir, out RaycastHit hitInfo, checkDist, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
                 {
                     if (!hitInfo.collider.CompareTag("Player"))
                     {
-                        // 遮蔽物の裏にいるためノーダメージ
                         continue;
                     }
                 }
-                // ------------------------------------
 
                 playerController.TakeDamage(areaAttack.damage);
             }

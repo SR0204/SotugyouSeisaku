@@ -217,6 +217,11 @@ MonoBehaviour:
     laserStraightWeight: 10
     laserSweep360Weight: 10
     laserSweep90Weight: 5
+  splitSettings:
+    splitHpThreshold: 0.5
+    subBossPrefab: {fileID: 2951477989358044842, guid: f7f00759b6cb5544b823f33f45050f04, type: 3}
+    spawnOffset: {x: 3, y: 0, z: 0}
+    spawnVfxPrefab: {fileID: 0}
   attackInterval: 2
   isPhase2: 1
   phase2HpThreshold: 0.5

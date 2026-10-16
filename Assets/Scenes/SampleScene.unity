@@ -435,6 +435,7 @@ MonoBehaviour:
   - {fileID: 3569690956674444035, guid: 7771444dd74c2ff40af520fe34c67b2f, type: 3}
   - {fileID: 3569690956674444035, guid: a1a44b946f510084db41ae0111c95ae9, type: 3}
   - {fileID: 3569690956674444035, guid: 4e350889a600d8c498ce9939a1166a1a, type: 3}
+  - {fileID: 3569690956674444035, guid: 6f662be8af4861f4cba166bf054babfc, type: 3}
   bossSpecificArenas:
   - {fileID: 0}
   - {fileID: 0}
