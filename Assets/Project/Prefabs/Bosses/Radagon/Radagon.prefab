@@ -207,15 +207,33 @@ MonoBehaviour:
     duration: 2
     laserLine: {fileID: 3843838150984086227}
     firingPoint: {fileID: 5052889801690882290}
+  laser360Attack:
+    damagePerTick: 150
+    maxDistance: 30
+    duration: 5
+    chargeTime: 2
+    chargeVfxPrefab: {fileID: 4944001563542533797, guid: 7f1818b5753c6bd499c58455fa00e5e5, type: 3}
+    firingPoint: {fileID: 0}
   attackWeights:
+    enableMeleeNormal: 0
     meleeNormalWeight: 20
+    enableMeleeHeavy: 0
     meleeHeavyWeight: 10
+    enableRangedSingle: 0
     rangedSingleWeight: 10
+    enableRangedRapid: 0
     rangedRapidWeight: 15
+    enableRangedSpread: 0
     rangedSpreadWeight: 15
+    enableAreaImpact: 0
     areaImpactWeight: 5
+    enableLaserStraight: 0
     laserStraightWeight: 10
+    enableLaserSweep360: 1
     laserSweep360Weight: 10
+    enableLaserSweep360Charge: 1
+    laserSweep360ChargeWeight: 5
+    enableLaserSweep90: 0
     laserSweep90Weight: 5
   splitSettings:
     splitHpThreshold: 0.5

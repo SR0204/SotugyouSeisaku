@@ -329,11 +329,14 @@ MonoBehaviour:
   ySpeed: 80
   yMinLimit: -20
   yMaxLimit: 80
+  verticalSmoothSpeed: 3
+  fallThresholdVelocity: -8
   lockOnKey: 325
   isLockedOn: 0
   lockOnTarget: {fileID: 0}
   lockOnIcon: {fileID: 0}
-  lockOnOffset: {x: 0, y: 0.1, z: 0}
+  lockOnOffset: {x: 0, y: 1.5, z: 0}
+  maxLockOnDistance: 25
 --- !u!1 &1015255079
 GameObject:
   m_ObjectHideFlags: 0

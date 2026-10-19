@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class LaserBeam : MonoBehaviour
@@ -50,7 +51,7 @@ public class LaserBeam : MonoBehaviour
         StartCoroutine(LaserRoutine(chargeTime, duration, sweepAngle));
     }
 
-    private IEnumerator LaserRoutine(float chargeTime, float duration, float sweepAngle)
+    private IEnumerator LaserRoutine(float warningTime, float duration, float sweepAngle)
     {
         if (lineRenderer == null) lineRenderer = GetComponent<LineRenderer>();
         if (lineRenderer == null) yield break;
@@ -60,7 +61,7 @@ public class LaserBeam : MonoBehaviour
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
 
-        // ★ 最初の発射基準向きを設定
+        // ★ プレイヤーの方を向く（最初の基準角度）
         if (playerObj != null)
         {
             Vector3 targetPos = playerObj.transform.position + Vector3.up * 0.8f;
@@ -74,7 +75,7 @@ public class LaserBeam : MonoBehaviour
         Quaternion startRot = transform.localRotation;
 
         // ----------------------------------------------------
-        // 1. 予兆（本照射と同じ移動を赤い予測線で見せる）
+        // 1. 予兆（赤い警告線で発射方向と長さを提示）
         // ----------------------------------------------------
         lineRenderer.startWidth = 0.25f;
         lineRenderer.endWidth = 0.25f;
@@ -82,40 +83,35 @@ public class LaserBeam : MonoBehaviour
         lineRenderer.endColor = warningColor;
 
         float timer = 0f;
-        while (timer < chargeTime)
+        while (timer < warningTime)
         {
             timer += Time.deltaTime;
-
-            // 回転攻撃（90度・360度など）の場合は、予兆中もその軌道に沿って動かす
-            if (Mathf.Abs(sweepAngle) > 0.1f)
-            {
-                float progress = Mathf.Clamp01(timer / chargeTime);
-                float currentAngle = Mathf.Lerp(-sweepAngle / 2f, sweepAngle / 2f, progress);
-                transform.localRotation = startRot * Quaternion.Euler(0, currentAngle, 0);
-            }
-
-            // 本照射と同じ長さで予測線を描画
+            // 予兆中は正面を指したまま線を伸ばして警告
+            transform.localRotation = startRot;
             UpdateLinePositions(laserRadius);
             yield return null;
         }
 
         // ----------------------------------------------------
-        // 2. 本照射（極太レーザー＋判定）
+        // 2. 本照射（極太レーザーで360度回転＋判定）
         // ----------------------------------------------------
         lineRenderer.startWidth = laserRadius * 2f;
         lineRenderer.endWidth = laserRadius * 2f;
         lineRenderer.startColor = attackColor;
         lineRenderer.endColor = attackColor;
 
+        HashSet<PlayerController> hitPlayersThisBeam = new HashSet<PlayerController>();
+
         timer = 0f;
         while (timer < duration)
         {
             timer += Time.deltaTime;
 
+            // 本照射中に指定された角度（360度）をスムーズに回転
             if (Mathf.Abs(sweepAngle) > 0.1f)
             {
                 float progress = Mathf.Clamp01(timer / duration);
-                float currentAngle = Mathf.Lerp(-sweepAngle / 2f, sweepAngle / 2f, progress);
+                float currentAngle = Mathf.Lerp(0f, sweepAngle, progress);
                 transform.localRotation = startRot * Quaternion.Euler(0, currentAngle, 0);
             }
 
@@ -136,14 +132,22 @@ public class LaserBeam : MonoBehaviour
                 if (hit.collider.CompareTag("Player"))
                 {
                     PlayerController player = hit.collider.GetComponent<PlayerController>();
-                    if (player == null)
-                    {
-                        player = hit.collider.GetComponentInParent<PlayerController>();
-                    }
+                    if (player == null) player = hit.collider.GetComponentInParent<PlayerController>();
 
                     if (player != null)
                     {
-                        player.TakeDamage(laserDamagePerSecond * Time.deltaTime);
+                        if (Mathf.Abs(sweepAngle) >= 300f)
+                        {
+                            if (!hitPlayersThisBeam.Contains(player))
+                            {
+                                hitPlayersThisBeam.Add(player);
+                                player.TakeDamage(laserDamagePerSecond);
+                            }
+                        }
+                        else
+                        {
+                            player.TakeDamage(laserDamagePerSecond * Time.deltaTime);
+                        }
                     }
                 }
             }
@@ -156,6 +160,12 @@ public class LaserBeam : MonoBehaviour
         // ----------------------------------------------------
         lineRenderer.enabled = false;
         transform.localRotation = startRot;
+
+        BossRadagonAI bossAI = GetComponentInParent<BossRadagonAI>();
+        if (bossAI != null)
+        {
+            bossAI.OnLaserFinished();
+        }
     }
 
     /// <summary>

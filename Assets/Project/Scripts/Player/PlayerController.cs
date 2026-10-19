@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,66 +7,70 @@ using TMPro;
 public class PlayerController : MonoBehaviour
 {
     // ==========================================
-    // 1. ˆÚ“®Eƒ_ƒbƒVƒ…İ’è
+    // 1. ç§»å‹•ãƒ»ãƒ€ãƒƒã‚·ãƒ¥è¨­å®š
     // ==========================================
-    [Header("=== 1. ˆÚ“®Eƒ_ƒbƒVƒ…İ’è ===")]
-    [Tooltip("’ÊíˆÚ“®i•à‚«j‚ÌƒXƒs[ƒh")]
+    [Header("=== 1. ç§»å‹•ãƒ»ãƒ€ãƒƒã‚·ãƒ¥è¨­å®š ===")]
+    [Tooltip("é€šå¸¸ç§»å‹•ï¼ˆæ­©ãï¼‰ã®ã‚¹ãƒ”ãƒ¼ãƒ‰")]
     public float walkSpeed = 6f;
-    [Tooltip("ƒ_ƒbƒVƒ…‚ÌƒXƒs[ƒh")]
+    [Tooltip("ãƒ€ãƒƒã‚·ãƒ¥æ™‚ã®ã‚¹ãƒ”ãƒ¼ãƒ‰")]
     public float sprintSpeed = 10f;
-    [Tooltip("‰ñ“]‚Ì•âŠÔƒXƒs[ƒh")]
+    [Tooltip("å›è»¢ã®è£œé–“ã‚¹ãƒ”ãƒ¼ãƒ‰")]
     public float rotationSpeed = 10f;
 
+    [Space(5)]
+    [Tooltip("ã“ã®Yåº§æ¨™ï¼ˆé«˜ã•ï¼‰ä»¥ä¸‹ã«è½ã¡ãŸã‚‰å³æ­»ï¼ˆãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ: -15mï¼‰")]
+    public float fallDeathY = -15f;
+
     // ==========================================
-    // 2. HPE‰ñ•œiƒGƒXƒg•rjİ’è
+    // 2. HPãƒ»å›å¾©ï¼ˆã‚¨ã‚¹ãƒˆç“¶ï¼‰è¨­å®š
     // ==========================================
-    [Header("=== 2. HPE‰ñ•œİ’è ===")]
+    [Header("=== 2. HPãƒ»å›å¾©è¨­å®š ===")]
     public float maxHealth = 100f;
     [HideInInspector] public float currentHealth;
 
     [Space(5)]
-    [Tooltip("ƒ|[ƒVƒ‡ƒ“iƒGƒXƒg•rj‚ÌŠãŒÀ”")]
+    [Tooltip("ãƒãƒ¼ã‚·ãƒ§ãƒ³ï¼ˆã‚¨ã‚¹ãƒˆç“¶ï¼‰ã®æ‰€æŒä¸Šé™æ•°")]
     public int maxEstusCount = 3;
     [HideInInspector] public int currentEstusCount;
-    [Tooltip("1‰ñ‚ ‚½‚è‚Ì‰ñ•œ—Ê")]
+    [Tooltip("1å›ã‚ãŸã‚Šã®å›å¾©é‡")]
     public float healAmount = 40f;
 
     // ==========================================
-    // 3. ƒXƒ^ƒ~ƒiİ’è
+    // 3. ã‚¹ã‚¿ãƒŸãƒŠè¨­å®š
     // ==========================================
-    [Header("=== 3. ƒXƒ^ƒ~ƒiİ’è ===")]
+    [Header("=== 3. ã‚¹ã‚¿ãƒŸãƒŠè¨­å®š ===")]
     public float maxStamina = 100f;
     [HideInInspector] public float currentStamina;
-    [Tooltip("ƒ_ƒbƒVƒ…’†‚Ì1•b‚ ‚½‚è‚ÌÁ”ïƒXƒ^ƒ~ƒi")]
+    [Tooltip("ãƒ€ãƒƒã‚·ãƒ¥ä¸­ã®1ç§’ã‚ãŸã‚Šã®æ¶ˆè²»ã‚¹ã‚¿ãƒŸãƒŠ")]
     public float staminaDrainRate = 25f;
-    [Tooltip("©“®‰ñ•œ‚Ì1•b‚ ‚½‚è‚Ì‰ñ•œ—Ê")]
+    [Tooltip("è‡ªå‹•å›å¾©æ™‚ã®1ç§’ã‚ãŸã‚Šã®å›å¾©é‡")]
     public float staminaRegenRate = 15f;
-    [Tooltip("ƒXƒ^ƒ~ƒiÁ”ïƒAƒNƒVƒ‡ƒ“ŒãA‰ñ•œ‚ªn‚Ü‚é‚Ü‚Å‚Ì‘Ò‚¿ŠÔi•bj")]
+    [Tooltip("ã‚¹ã‚¿ãƒŸãƒŠæ¶ˆè²»ã‚¢ã‚¯ã‚·ãƒ§ãƒ³å¾Œã€å›å¾©ãŒå§‹ã¾ã‚‹ã¾ã§ã®å¾…ã¡æ™‚é–“ï¼ˆç§’ï¼‰")]
     public float regenDelay = 1.0f;
 
     // ==========================================
-    // 4. UŒ‚EƒRƒ“ƒ{İ’è
+    // 4. æ”»æ’ƒãƒ»ã‚³ãƒ³ãƒœè¨­å®š
     // ==========================================
     [System.Serializable]
     public class ComboSettings
     {
-        [Tooltip("UŒ‚ŠJn‚©‚ç“–‚½‚è”»’è‚ª”­¶‚·‚é‚Ü‚Å‚Ì‘OŒ„i•bj")]
+        [Tooltip("æ”»æ’ƒé–‹å§‹ã‹ã‚‰å½“ãŸã‚Šåˆ¤å®šãŒç™ºç”Ÿã™ã‚‹ã¾ã§ã®å‰éš™ï¼ˆç§’ï¼‰")]
         public float hitDelay = 0.1f;
-        [Tooltip("‘S‘Ìƒ‚[ƒVƒ‡ƒ“ŠÔi•bj")]
+        [Tooltip("å…¨ä½“ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³æ™‚é–“ï¼ˆç§’ï¼‰")]
         public float duration = 0.6f;
-        [Tooltip("UŒ‚‚Ì’†S‚Æ‚È‚é‘O•ûƒIƒtƒZƒbƒg")]
+        [Tooltip("æ”»æ’ƒã®ä¸­å¿ƒã¨ãªã‚‹å‰æ–¹ã‚ªãƒ•ã‚»ãƒƒãƒˆ")]
         public float attackOffset = 1.2f;
     }
 
-    [Header("=== 4. UŒ‚EƒRƒ“ƒ{İ’è ===")]
-    [Tooltip("1ƒqƒbƒg‚ ‚½‚è‚ÌUŒ‚—Í")]
+    [Header("=== 4. æ”»æ’ƒãƒ»ã‚³ãƒ³ãƒœè¨­å®š ===")]
+    [Tooltip("1ãƒ’ãƒƒãƒˆã‚ãŸã‚Šã®æ”»æ’ƒåŠ›")]
     public float attackDamage = 25f;
-    [Tooltip("UŒ‚1‰ñ‚ ‚½‚è‚ÌÁ”ïƒXƒ^ƒ~ƒi")]
+    [Tooltip("æ”»æ’ƒ1å›ã‚ãŸã‚Šã®æ¶ˆè²»ã‚¹ã‚¿ãƒŸãƒŠ")]
     public float attackStaminaCost = 20f;
-    [Tooltip("UŒ‚”»’è‚Ì”¼Œa")]
+    [Tooltip("æ”»æ’ƒåˆ¤å®šã®åŠå¾„")]
     public float attackRadius = 1.5f;
 
-    [Tooltip("ƒRƒ“ƒ{–ˆ‚ÌŒÂ•Êƒ^ƒCƒ~ƒ“ƒOİ’èi1’i–Ú, 2’i–Ú, 3’i–Új")]
+    [Tooltip("ã‚³ãƒ³ãƒœæ¯ã®å€‹åˆ¥ã‚¿ã‚¤ãƒŸãƒ³ã‚°è¨­å®šï¼ˆ1æ®µç›®, 2æ®µç›®, 3æ®µç›®ï¼‰")]
     [SerializeField] private ComboSettings[] comboList = new ComboSettings[3];
 
     [HideInInspector] public bool isAttacking = false;
@@ -75,41 +79,46 @@ public class PlayerController : MonoBehaviour
     private bool isNextComboQueued = false;
 
     // ==========================================
-    // 5. ‰ñ”ğiƒ[ƒŠƒ“ƒOjEƒWƒƒƒ“ƒvİ’è
+    // 5. å›é¿ï¼ˆãƒ­ãƒ¼ãƒªãƒ³ã‚°ï¼‰ãƒ»ã‚¸ãƒ£ãƒ³ãƒ—ãƒ»ãƒ€ã‚¦ãƒ³è¨­å®š
     // ==========================================
-    [Header("=== 5. ‰ñ”ğEƒWƒƒƒ“ƒvİ’è ===")]
-    [Tooltip("ƒ[ƒŠƒ“ƒO‚ÌˆÚ“®ƒXƒs[ƒh")]
+    [Header("=== 5. å›é¿ãƒ»ã‚¸ãƒ£ãƒ³ãƒ—ãƒ»ãƒ€ã‚¦ãƒ³è¨­å®š ===")]
+    [Tooltip("ãƒ­ãƒ¼ãƒªãƒ³ã‚°æ™‚ã®ç§»å‹•ã‚¹ãƒ”ãƒ¼ãƒ‰")]
     public float rollSpeed = 12f;
-    [Tooltip("ƒ[ƒŠƒ“ƒO‘S‘Ì‚Ì“®ìŠÔi•bj")]
+    [Tooltip("ãƒ­ãƒ¼ãƒªãƒ³ã‚°å…¨ä½“ã®å‹•ä½œæ™‚é–“ï¼ˆç§’ï¼‰")]
     public float rollDuration = 0.5f;
-    [Tooltip("–³“GŠÔi•bj")]
+    [Tooltip("ç„¡æ•µæ™‚é–“ï¼ˆç§’ï¼‰")]
     public float invincibleDuration = 0.3f;
-    [Tooltip("ƒ[ƒŠƒ“ƒO‚ÌÁ”ïƒXƒ^ƒ~ƒi")]
+    [Tooltip("ãƒ­ãƒ¼ãƒªãƒ³ã‚°ã®æ¶ˆè²»ã‚¹ã‚¿ãƒŸãƒŠ")]
     public float rollStaminaCost = 20f;
 
     [Space(5)]
-    [Tooltip("ƒWƒƒƒ“ƒv‚Ì‚‚³")]
+    [Tooltip("ã‚¸ãƒ£ãƒ³ãƒ—ã®é«˜ã•")]
     public float jumpHeight = 1.5f;
-    [Tooltip("ƒWƒƒƒ“ƒv‚ÌÁ”ïƒXƒ^ƒ~ƒi")]
+    [Tooltip("ã‚¸ãƒ£ãƒ³ãƒ—ã®æ¶ˆè²»ã‚¹ã‚¿ãƒŸãƒŠ")]
     public float jumpStaminaCost = 20f;
-    [Tooltip("d—Í‚Ì‹­‚³")]
+    [Tooltip("é‡åŠ›ã®å¼·ã•")]
     public float gravity = -19.62f;
+
+    [Space(5)]
+    [Tooltip("å¹ã£é£›ã³ãƒ€ã‚¦ãƒ³ãŒç™ºç”Ÿã™ã‚‹ãƒ€ãƒ¡ãƒ¼ã‚¸ã®é–¾å€¤")]
+    public float knockdownDamageThreshold = 30f;
 
     [HideInInspector] public bool isRolling = false;
     [HideInInspector] public bool isInvincible = false;
+    [HideInInspector] public bool isKnockedDown = false; // â˜… ãƒ€ã‚¦ãƒ³ä¸­ãƒ•ãƒ©ã‚°
     private Vector3 rollDirection;
 
     // ==========================================
-    // 6. UI & ƒRƒ“ƒ|[ƒlƒ“ƒgQÆ
+    // 6. UI & ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆå‚ç…§
     // ==========================================
-    [Header("=== 6. UI & QÆİ’è ===")]
+    [Header("=== 6. UI & å‚ç…§è¨­å®š ===")]
     public Slider healthSlider;
     public Slider staminaSlider;
     public TextMeshProUGUI estusText;
-    [Tooltip("Šî€‚Æ‚·‚éƒƒCƒ“ƒJƒƒ‰‚ÌTransform")]
+    [Tooltip("åŸºæº–ã¨ã™ã‚‹ãƒ¡ã‚¤ãƒ³ã‚«ãƒ¡ãƒ©ã®Transform")]
     public Transform cameraTransform;
 
-    // “à•”ƒRƒ“ƒ|[ƒlƒ“ƒgE•Ï”
+    // å†…éƒ¨ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆãƒ»å¤‰æ•°
     private CharacterController controller;
     private Vector3 velocity;
     private Animator animator;
@@ -121,6 +130,31 @@ public class PlayerController : MonoBehaviour
         controller = GetComponent<CharacterController>();
         animator = GetComponentInChildren<Animator>();
 
+        // â˜… ç”Ÿæˆã•ã‚ŒãŸ Canvas ã‹ã‚‰ UI è¦ç´ ã‚’è‡ªå‹•æ¤œç´¢ã—ã¦ç´ä»˜ã‘ã‚‹
+        if (healthSlider == null)
+        {
+            GameObject hpObj = GameObject.Find("HPBar");
+            if (hpObj != null) healthSlider = hpObj.GetComponent<Slider>();
+        }
+
+        if (staminaSlider == null)
+        {
+            GameObject stObj = GameObject.Find("StaminaBar");
+            if (stObj != null) staminaSlider = stObj.GetComponent<Slider>();
+        }
+
+        if (estusText == null)
+        {
+            GameObject estusObj = GameObject.Find("Potion");
+            if (estusObj != null) estusText = estusObj.GetComponent<TMPro.TextMeshProUGUI>();
+        }
+
+        if (cameraTransform == null && Camera.main != null)
+        {
+            cameraTransform = Camera.main.transform;
+        }
+
+        // åˆæœŸå€¤ã®é©ç”¨
         currentHealth = maxHealth;
         UpdateHealthUI();
 
@@ -133,22 +167,31 @@ public class PlayerController : MonoBehaviour
             staminaSlider.maxValue = maxStamina;
             staminaSlider.value = currentStamina;
         }
-
-        if (cameraTransform == null && Camera.main != null)
-        {
-            cameraTransform = Camera.main.transform;
-        }
     }
 
     void Update()
     {
+        // â˜… è½ä¸‹æ­»ãƒã‚§ãƒƒã‚¯
+        if (transform.position.y < fallDeathY)
+        {
+            TakeDamage(9999f);
+        }
+
+        // â˜… ãƒ€ã‚¦ãƒ³ä¸­ã®åˆ¶å¾¡ï¼ˆç§»å‹•ã‚„å…¥åŠ›ã‚’é®æ–­ã—é‡åŠ›ã®ã¿é©ç”¨ï¼‰
+        if (isKnockedDown)
+        {
+            velocity.y += gravity * Time.deltaTime;
+            controller.Move(velocity * Time.deltaTime);
+            return;
+        }
+
         bool isGrounded = controller.isGrounded;
         if (isGrounded && velocity.y < 0)
         {
             velocity.y = -2f;
         }
 
-        // --- 1. ƒ[ƒŠƒ“ƒO’†‚Ìˆ— ---
+        // --- 1. ãƒ­ãƒ¼ãƒªãƒ³ã‚°ä¸­ã®å‡¦ç† ---
         if (isRolling)
         {
             Vector3 rollMove = rollDirection * rollSpeed;
@@ -159,7 +202,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // --- 2. UŒ‚’†‚Ìˆ— ---
+        // --- 2. æ”»æ’ƒä¸­ã®å‡¦ç† ---
         if (isAttacking)
         {
             if (animator != null)
@@ -182,7 +225,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // --- 3. “ü—Íæ“¾‚ÆƒAƒNƒVƒ‡ƒ“”»’è ---
+        // --- 3. å…¥åŠ›å–å¾—ã¨ã‚¢ã‚¯ã‚·ãƒ§ãƒ³åˆ¤å®š ---
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         Vector3 dir = new Vector3(h, 0, v).normalized;
@@ -190,25 +233,25 @@ public class PlayerController : MonoBehaviour
         bool isClickingUI = UnityEngine.EventSystems.EventSystem.current != null &&
                             UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
 
-        // UŒ‚”­“®
+        // æ”»æ’ƒç™ºå‹•
         if (!isClickingUI && Input.GetMouseButtonDown(0) && currentStamina >= attackStaminaCost && !isAttacking)
         {
             StartCoroutine(AttackRoutine());
         }
 
-        // ‰ñ”ğ”­“®
+        // å›é¿ç™ºå‹•
         if (Input.GetKeyDown(KeyCode.LeftControl) && currentStamina >= rollStaminaCost && !isAttacking)
         {
             StartCoroutine(RollRoutine(dir));
         }
 
-        // ƒGƒXƒgg—p
+        // ã‚¨ã‚¹ãƒˆä½¿ç”¨
         if (Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.E))
         {
             UseEstus();
         }
 
-        // ƒ_ƒbƒVƒ…ˆ—
+        // ãƒ€ãƒƒã‚·ãƒ¥å‡¦ç†
         bool wantsToSprint = Input.GetKey(KeyCode.LeftShift);
         if (wantsToSprint && dir.magnitude >= 0.1f && currentStamina > 0f)
         {
@@ -222,7 +265,7 @@ public class PlayerController : MonoBehaviour
             isSprinting = false;
         }
 
-        // ƒWƒƒƒ“ƒvˆ—
+        // ã‚¸ãƒ£ãƒ³ãƒ—å‡¦ç†
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded && currentStamina >= jumpStaminaCost)
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
@@ -230,7 +273,7 @@ public class PlayerController : MonoBehaviour
             regenTimer = regenDelay;
         }
 
-        // --- 4. ˆÚ“®E‰ñ“]ŒvZ ---
+        // --- 4. ç§»å‹•ãƒ»å›è»¢è¨ˆç®— ---
         Vector3 moveVelocity = Vector3.zero;
         float currentSpeed = isSprinting ? sprintSpeed : walkSpeed;
 
@@ -245,7 +288,7 @@ public class PlayerController : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
 
-        // ƒAƒjƒ[ƒVƒ‡ƒ“XV
+        // ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³æ›´æ–°
         if (animator != null)
         {
             if (dir.magnitude >= 0.1f)
@@ -259,7 +302,7 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // ƒXƒ^ƒ~ƒi‰ñ•œ
+        // ã‚¹ã‚¿ãƒŸãƒŠå›å¾©
         if (!isSprinting && !isRolling && !isAttacking)
         {
             if (regenTimer > 0f)
@@ -278,7 +321,7 @@ public class PlayerController : MonoBehaviour
             staminaSlider.value = currentStamina;
         }
 
-        // --- 5. d—Í‰ÁZ‚Æ‚Ü‚Æ‚ß‚Ä1‰ñ‚¾‚¯MoveÀs ---
+        // --- 5. é‡åŠ›åŠ ç®—ã¨ã¾ã¨ã‚ã¦1å›ã ã‘Moveå®Ÿè¡Œ ---
         velocity.y += gravity * Time.deltaTime;
 
         Vector3 finalMove = moveVelocity;
@@ -350,7 +393,6 @@ public class PlayerController : MonoBehaviour
                 }
             }
 
-            // U‚è‚©‚Ô‚èŠÔihitDelayj‚Ì‘Ò‹@
             if (currentCombo.hitDelay > 0f)
             {
                 yield return new WaitForSeconds(currentCombo.hitDelay);
@@ -358,18 +400,14 @@ public class PlayerController : MonoBehaviour
 
             canQueueNextCombo = true;
 
-            // --- ”»’è‘±ˆ—iƒGƒtƒFƒNƒg¶¬‚È‚µj ---
             float activeDuration = Mathf.Max(0.01f, currentCombo.duration - currentCombo.hitDelay);
             float timer = 0f;
-            HashSet<Collider> hitList = new HashSet<Collider>(); // ‘½’iƒqƒbƒg–h~
+            HashSet<Collider> hitList = new HashSet<Collider>();
 
             while (timer < activeDuration)
             {
                 timer += Time.deltaTime;
-
-                // –ˆƒtƒŒ[ƒ€•s‰Â‹‚Ì”»’è—Ìˆæ‚Åƒqƒbƒgƒ`ƒFƒbƒN‚ğs‚¤
                 CheckHitContinuous(currentCombo, hitList);
-
                 yield return null;
             }
 
@@ -456,7 +494,8 @@ public class PlayerController : MonoBehaviour
 
     public void TakeDamage(float damage)
     {
-        if (isInvincible) return;
+        // ãƒ€ã‚¦ãƒ³ä¸­ãƒ»ç„¡æ•µä¸­ã¯ãƒ€ãƒ¡ãƒ¼ã‚¸ç„¡åŠ¹åŒ–
+        if (isInvincible || isKnockedDown) return;
 
         currentHealth -= damage;
         currentHealth = Mathf.Max(currentHealth, 0f);
@@ -465,7 +504,43 @@ public class PlayerController : MonoBehaviour
         if (currentHealth <= 0)
         {
             Die();
+            return;
         }
+
+        // â˜… æŒ‡å®šãƒ€ãƒ¡ãƒ¼ã‚¸ï¼ˆãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ: 30ï¼‰ä»¥ä¸Šã§å¹ãé£›ã³ãƒ€ã‚¦ãƒ³ã¸ç§»è¡Œ
+        if (damage >= knockdownDamageThreshold)
+        {
+            StartCoroutine(KnockdownRoutine());
+        }
+    }
+
+    // â˜… å¹ãé£›ã³ï¼†èµ·ãä¸ŠãŒã‚Šã‚³ãƒ«ãƒ¼ãƒãƒ³ï¼ˆèµ·ãä¸ŠãŒã‚Šæ™‚é–“ãƒ»åŸ‹ã¾ã‚Šå¯¾ç­–èª¿æ•´ç‰ˆï¼‰
+    private IEnumerator KnockdownRoutine()
+    {
+        isKnockedDown = true;
+        isInvincible = true; // ãƒ€ã‚¦ãƒ³ãƒ»å¾©å¸°ä¸­ã¯ç„¡æ•µ
+
+        // é€²è¡Œä¸­ã®ã‚¢ã‚¯ã‚·ãƒ§ãƒ³ã‚’ãƒªã‚»ãƒƒãƒˆ
+        isAttacking = false;
+        isRolling = false;
+
+        if (animator != null)
+        {
+            animator.SetTrigger("KnockedDown");
+        }
+
+        // 1. å®Œå…¨ã«å‘ããƒ»å€’ã‚Œè¾¼ã¿åˆ¤å®šã‚’ç¢ºå®šã•ã›ã‚‹ãŸã‚å¾…æ©Ÿ
+        // â€» ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³å…¨ä½“ã®é•·ã•ã«åˆã‚ã›ã¦èª¿æ•´ã—ã¦ãã ã•ã„ï¼ˆä¾‹: 3.5ç§’ã€œ4.0ç§’ï¼‰
+        yield return new WaitForSeconds(3.5f);
+
+        // 2. å®Œå…¨ã«ã¤ã¾å…ˆç«‹ã¡ãƒ»ç«‹ã¡ä¸ŠãŒã‚Šçµ‚ãˆãŸã‚¿ã‚¤ãƒŸãƒ³ã‚°ã§ç§»å‹•ãƒ­ãƒƒã‚¯è§£é™¤
+        isKnockedDown = false;
+
+        // 3. ç«‹ã¡ä¸ŠãŒã£ãŸç›´å¾Œ 0.5ç§’é–“ ã¯ç„¡æ•µã‚’ç¶­æŒï¼ˆé‡ã­ãƒãƒ¡é˜²æ­¢ï¼‰
+        yield return new WaitForSeconds(0.5f);
+
+        // 4. ç„¡æ•µè§£é™¤
+        isInvincible = false;
     }
 
     private void UpdateHealthUI()
@@ -488,6 +563,11 @@ public class PlayerController : MonoBehaviour
     private void Die()
     {
         this.enabled = false;
+
+        if (animator != null)
+        {
+            animator.SetTrigger("Die");
+        }
 
         StageManager stageManager = FindObjectOfType<StageManager>();
         if (stageManager != null)

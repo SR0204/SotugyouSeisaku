@@ -152,6 +152,7 @@ MonoBehaviour:
   walkSpeed: 6
   sprintSpeed: 15
   rotationSpeed: 15
+  fallDeathY: -15
   maxHealth: 200
   currentHealth: 0
   maxEstusCount: 7
@@ -183,8 +184,10 @@ MonoBehaviour:
   jumpHeight: 1.5
   jumpStaminaCost: 20
   gravity: -19.62
+  knockdownDamageThreshold: 1
   isRolling: 0
   isInvincible: 0
+  isKnockedDown: 0
   healthSlider: {fileID: 0}
   staminaSlider: {fileID: 0}
   estusText: {fileID: 0}
