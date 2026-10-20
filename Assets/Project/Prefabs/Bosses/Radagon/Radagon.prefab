@@ -214,6 +214,14 @@ MonoBehaviour:
     chargeTime: 2
     chargeVfxPrefab: {fileID: 4944001563542533797, guid: 7f1818b5753c6bd499c58455fa00e5e5, type: 3}
     firingPoint: {fileID: 0}
+  eclipseMeteor:
+    damage: 150
+    chargeTime: 3
+    explosionRadius: 25
+    dropHeight: 30
+    chargeVfxPrefab: {fileID: 8201630939163145401, guid: f946f7cc983fc6c45833a0b58efaf7b4, type: 3}
+    meteorPrefab: {fileID: 8929382203911844234, guid: 9d4f7bacf07784d419def1d376aeea54, type: 3}
+    impactVfxPrefab: {fileID: 1757419204944954965, guid: 30526ce6d6e7be44ca0b747a5e17a71a, type: 3}
   attackWeights:
     enableMeleeNormal: 0
     meleeNormalWeight: 20
@@ -229,12 +237,12 @@ MonoBehaviour:
     areaImpactWeight: 5
     enableLaserStraight: 0
     laserStraightWeight: 10
-    enableLaserSweep360: 1
-    laserSweep360Weight: 10
-    enableLaserSweep360Charge: 1
+    enableLaserSweep360Charge: 0
     laserSweep360ChargeWeight: 5
     enableLaserSweep90: 0
     laserSweep90Weight: 5
+    enableEclipseMeteor: 1
+    eclipseMeteorWeight: 5
   splitSettings:
     splitHpThreshold: 0.5
     subBossPrefab: {fileID: 2951477989358044842, guid: f7f00759b6cb5544b823f33f45050f04, type: 3}

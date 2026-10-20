@@ -87,7 +87,7 @@ public class BossRadagonAI : MonoBehaviour
         public Transform firingPoint;
     }
 
-    // ★ 追加：エクリプスメテオ（極大範囲攻撃）設定
+    // エクリプスメテオ（極大範囲攻撃）設定
     [System.Serializable]
     public class EclipseMeteorSettings
     {
@@ -137,9 +137,9 @@ public class BossRadagonAI : MonoBehaviour
         public float laserSweep90Weight = 5f;
 
         [Header("--- 大技（必殺技） ---")]
-        [Tooltip("★ エクリプスメテオを使用するか")]
+        [Tooltip("エクリプスメテオを使用するか")]
         public bool enableEclipseMeteor = true;
-        [Tooltip("★ エクリプスメテオの発生確率（重み）")]
+        [Tooltip("エクリプスメテオの発生確率（重み）")]
         public float eclipseMeteorWeight = 5f;
     }
 
@@ -202,7 +202,7 @@ public class BossRadagonAI : MonoBehaviour
         LaserStraight,
         LaserSweep360Charge,
         LaserSweep90,
-        EclipseMeteor // ★ エクリプスメテオ
+        EclipseMeteor
     }
 
     void Start()
@@ -344,7 +344,6 @@ public class BossRadagonAI : MonoBehaviour
         if (attackWeights.enableLaserSweep90 && attackWeights.laserSweep90Weight > 0)
             attackPool.Add(AttackCategory.LaserSweep90, attackWeights.laserSweep90Weight);
 
-        // ★ エクリプスメテオの抽選追加
         if (attackWeights.enableEclipseMeteor && attackWeights.eclipseMeteorWeight > 0)
             attackPool.Add(AttackCategory.EclipseMeteor, attackWeights.eclipseMeteorWeight);
 
@@ -423,8 +422,7 @@ public class BossRadagonAI : MonoBehaviour
                     Invoke("AE_StartLaser90", 0.4f);
                     break;
                 case AttackCategory.EclipseMeteor:
-                    animator.SetTrigger("AreaAttack"); // 咆哮・詠唱アニメーションを再生
-                    StartCoroutine(EclipseMeteorRoutine());
+                    animator.SetTrigger("AreaAttack");
                     break;
             }
         }
@@ -457,9 +455,6 @@ public class BossRadagonAI : MonoBehaviour
                 case AttackCategory.LaserSweep90:
                     Invoke("AE_StartLaser90", 0.4f);
                     break;
-                case AttackCategory.EclipseMeteor:
-                    StartCoroutine(EclipseMeteorRoutine());
-                    break;
             }
         }
 
@@ -477,7 +472,8 @@ public class BossRadagonAI : MonoBehaviour
         }
         else if (attack == AttackCategory.EclipseMeteor)
         {
-            // エクリプスメテオはコルーチン側で待機完了まで制御するためここでは何もしない
+            // エクリプスメテオ完了まで足を止め切る
+            yield return StartCoroutine(EclipseMeteorRoutine());
         }
         else
         {
@@ -490,6 +486,12 @@ public class BossRadagonAI : MonoBehaviour
     // ★ エクリプスメテオ（極大範囲攻撃）の実行コルーチン
     private IEnumerator EclipseMeteorRoutine()
     {
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
         Vector3 targetPos = (player != null) ? player.position : transform.position;
         targetPos.y = transform.position.y; // 地面高度に合わせる
 
@@ -497,12 +499,28 @@ public class BossRadagonAI : MonoBehaviour
         GameObject chargeVfx = null;
         if (eclipseMeteor.chargeVfxPrefab != null)
         {
-            chargeVfx = Instantiate(eclipseMeteor.chargeVfxPrefab, transform.position, Quaternion.identity, transform);
+            chargeVfx = Instantiate(eclipseMeteor.chargeVfxPrefab, targetPos, Quaternion.identity);
+            float diameter = eclipseMeteor.explosionRadius * 2f;
+            chargeVfx.transform.localScale = new Vector3(diameter, 1f, diameter);
+
+            // ★ チャージVFX内のすべての Particle System のループを解除＆強制スケーリング設定
+            ParticleSystem[] chargeParticles = chargeVfx.GetComponentsInChildren<ParticleSystem>();
+            foreach (var ps in chargeParticles)
+            {
+                var main = ps.main;
+                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                main.loop = false; // 強制ループ解除
+            }
         }
 
+        // チャージ時間分待機
         yield return new WaitForSeconds(eclipseMeteor.chargeTime);
 
-        if (chargeVfx != null) Destroy(chargeVfx);
+        // ★ チャージVFXを確実に消去
+        if (chargeVfx != null)
+        {
+            Destroy(chargeVfx);
+        }
 
         // 2. メテオ落下の生成
         Vector3 spawnPos = targetPos + Vector3.up * eclipseMeteor.dropHeight;
@@ -510,11 +528,10 @@ public class BossRadagonAI : MonoBehaviour
         if (eclipseMeteor.meteorPrefab != null)
         {
             meteorObj = Instantiate(eclipseMeteor.meteorPrefab, spawnPos, Quaternion.identity);
-            // 地面に向かって高速落下させる
             StartCoroutine(DropMeteorToGround(meteorObj, spawnPos, targetPos, 1.2f));
         }
 
-        yield return new WaitForSeconds(1.2f); // 落下時間分待機
+        yield return new WaitForSeconds(1.2f);
 
         // 3. 地面着弾・極大爆発
         if (meteorObj != null) Destroy(meteorObj);
@@ -522,20 +539,38 @@ public class BossRadagonAI : MonoBehaviour
         if (eclipseMeteor.impactVfxPrefab != null)
         {
             GameObject impactVfx = Instantiate(eclipseMeteor.impactVfxPrefab, targetPos, Quaternion.identity);
-            StartCoroutine(FadeOutAndDestroy(impactVfx, 3.0f));
+            float diameter = eclipseMeteor.explosionRadius * 2f;
+            impactVfx.transform.localScale = new Vector3(diameter, diameter, diameter);
+
+            // ★ 着弾VFX内のすべての Particle System のループを解除
+            ParticleSystem[] impactParticles = impactVfx.GetComponentsInChildren<ParticleSystem>();
+            foreach (var ps in impactParticles)
+            {
+                var main = ps.main;
+                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                main.loop = false; // 強制ループ解除
+            }
+
+            // 着弾VFXを2.5秒後に確実に破棄
+            Destroy(impactVfx, 2.5f);
         }
 
-        // 4. 極大加害判定（判定エリア内のプレイヤーへ破格のダメージ）
+        // 4. 極大加害判定
         Collider[] hits = Physics.OverlapSphere(targetPos, eclipseMeteor.explosionRadius);
         foreach (var hit in hits)
         {
-            if (hit.CompareTag("Player") && playerController != null)
+            if (hit.CompareTag("Player"))
             {
-                playerController.TakeDamage(eclipseMeteor.damage);
+                PlayerController playerComp = hit.GetComponent<PlayerController>();
+                if (playerComp == null) playerComp = hit.GetComponentInParent<PlayerController>();
+
+                if (playerComp != null)
+                {
+                    playerComp.TakeDamage(eclipseMeteor.damage);
+                }
             }
         }
 
-        // 後隙待機
         yield return new WaitForSeconds(2.0f);
     }
 

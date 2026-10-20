@@ -105,7 +105,8 @@ public class PlayerController : MonoBehaviour
 
     [HideInInspector] public bool isRolling = false;
     [HideInInspector] public bool isInvincible = false;
-    [HideInInspector] public bool isKnockedDown = false; // ★ ダウン中フラグ
+    [HideInInspector] public bool isKnockedDown = false; // ダウン中フラグ
+    private bool isDead = false; // ★ 死亡・リトライ二重実行防止フラグ
     private Vector3 rollDirection;
 
     // ==========================================
@@ -130,7 +131,6 @@ public class PlayerController : MonoBehaviour
         controller = GetComponent<CharacterController>();
         animator = GetComponentInChildren<Animator>();
 
-        // ★ 生成された Canvas から UI 要素を自動検索して紐付ける
         if (healthSlider == null)
         {
             GameObject hpObj = GameObject.Find("HPBar");
@@ -154,7 +154,6 @@ public class PlayerController : MonoBehaviour
             cameraTransform = Camera.main.transform;
         }
 
-        // 初期値の適用
         currentHealth = maxHealth;
         UpdateHealthUI();
 
@@ -167,17 +166,19 @@ public class PlayerController : MonoBehaviour
             staminaSlider.maxValue = maxStamina;
             staminaSlider.value = currentStamina;
         }
+
+        isDead = false;
     }
 
     void Update()
     {
-        // ★ 落下死チェック
+        // 落下死チェック
         if (transform.position.y < fallDeathY)
         {
             TakeDamage(9999f);
         }
 
-        // ★ ダウン中の制御（移動や入力を遮断し重力のみ適用）
+        // ダウン中の制御
         if (isKnockedDown)
         {
             velocity.y += gravity * Time.deltaTime;
@@ -233,25 +234,21 @@ public class PlayerController : MonoBehaviour
         bool isClickingUI = UnityEngine.EventSystems.EventSystem.current != null &&
                             UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
 
-        // 攻撃発動
         if (!isClickingUI && Input.GetMouseButtonDown(0) && currentStamina >= attackStaminaCost && !isAttacking)
         {
             StartCoroutine(AttackRoutine());
         }
 
-        // 回避発動
         if (Input.GetKeyDown(KeyCode.LeftControl) && currentStamina >= rollStaminaCost && !isAttacking)
         {
             StartCoroutine(RollRoutine(dir));
         }
 
-        // エスト使用
         if (Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.E))
         {
             UseEstus();
         }
 
-        // ダッシュ処理
         bool wantsToSprint = Input.GetKey(KeyCode.LeftShift);
         if (wantsToSprint && dir.magnitude >= 0.1f && currentStamina > 0f)
         {
@@ -265,7 +262,6 @@ public class PlayerController : MonoBehaviour
             isSprinting = false;
         }
 
-        // ジャンプ処理
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded && currentStamina >= jumpStaminaCost)
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
@@ -288,7 +284,6 @@ public class PlayerController : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
 
-        // アニメーション更新
         if (animator != null)
         {
             if (dir.magnitude >= 0.1f)
@@ -302,7 +297,6 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // スタミナ回復
         if (!isSprinting && !isRolling && !isAttacking)
         {
             if (regenTimer > 0f)
@@ -494,8 +488,8 @@ public class PlayerController : MonoBehaviour
 
     public void TakeDamage(float damage)
     {
-        // ダウン中・無敵中はダメージ無効化
-        if (isInvincible || isKnockedDown) return;
+        // 既に死亡、ダウン中、または無敵中の場合は受けつけない
+        if (isDead || isInvincible || isKnockedDown) return;
 
         currentHealth -= damage;
         currentHealth = Mathf.Max(currentHealth, 0f);
@@ -507,20 +501,17 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // ★ 指定ダメージ（デフォルト: 30）以上で吹き飛びダウンへ移行
         if (damage >= knockdownDamageThreshold)
         {
             StartCoroutine(KnockdownRoutine());
         }
     }
 
-    // ★ 吹き飛び＆起き上がりコルーチン（起き上がり時間・埋まり対策調整版）
     private IEnumerator KnockdownRoutine()
     {
         isKnockedDown = true;
-        isInvincible = true; // ダウン・復帰中は無敵
+        isInvincible = true;
 
-        // 進行中のアクションをリセット
         isAttacking = false;
         isRolling = false;
 
@@ -529,17 +520,12 @@ public class PlayerController : MonoBehaviour
             animator.SetTrigger("KnockedDown");
         }
 
-        // 1. 完全に向き・倒れ込み判定を確定させるため待機
-        // ※ モーション全体の長さに合わせて調整してください（例: 3.5秒〜4.0秒）
         yield return new WaitForSeconds(3.5f);
 
-        // 2. 完全につま先立ち・立ち上がり終えたタイミングで移動ロック解除
         isKnockedDown = false;
 
-        // 3. 立ち上がった直後 0.5秒間 は無敵を維持（重ねハメ防止）
         yield return new WaitForSeconds(0.5f);
 
-        // 4. 無敵解除
         isInvincible = false;
     }
 
@@ -562,6 +548,10 @@ public class PlayerController : MonoBehaviour
 
     private void Die()
     {
+        // ★ 重複呼出し（リトライの二重ロード・オブジェクト増殖）を防ぐガード
+        if (isDead) return;
+        isDead = true;
+
         this.enabled = false;
 
         if (animator != null)
