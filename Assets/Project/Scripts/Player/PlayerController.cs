@@ -83,9 +83,9 @@ public class PlayerController : MonoBehaviour
     // ==========================================
     [Header("=== 5. 回避・ジャンプ・ダウン設定 ===")]
     [Tooltip("ローリング時の移動スピード")]
-    public float rollSpeed = 12f;
+    public float rollSpeed = 10f;
     [Tooltip("ローリング全体の動作時間（秒）")]
-    public float rollDuration = 0.5f;
+    public float rollDuration = 0.6f;
     [Tooltip("無敵時間（秒）")]
     public float invincibleDuration = 0.3f;
     [Tooltip("ローリングの消費スタミナ")]
@@ -192,7 +192,7 @@ public class PlayerController : MonoBehaviour
             velocity.y = -2f;
         }
 
-        // --- 1. ローリング中の処理 ---
+        // ★ 1. 最優先ガード：回避中はWASDやキー入力を一切読み込まず、回避移動のみを行って即Return！
         if (isRolling)
         {
             Vector3 rollMove = rollDirection * rollSpeed;
@@ -200,7 +200,7 @@ public class PlayerController : MonoBehaviour
             rollMove.y = velocity.y;
 
             controller.Move(rollMove * Time.deltaTime);
-            return;
+            return; // ★ これ以降の入力読み込み（WASD）・回転計算を完全にシャットアウト
         }
 
         // --- 2. 攻撃中の処理 ---
@@ -226,7 +226,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // --- 3. 入力取得とアクション判定 ---
+        // --- 3. 入力取得とアクション判定（回避中以外のみ実行） ---
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         Vector3 dir = new Vector3(h, 0, v).normalized;
@@ -239,9 +239,12 @@ public class PlayerController : MonoBehaviour
             StartCoroutine(AttackRoutine());
         }
 
-        if (Input.GetKeyDown(KeyCode.LeftControl) && currentStamina >= rollStaminaCost && !isAttacking)
+        // ★ 回避入力判定
+        if (Input.GetKeyDown(KeyCode.LeftControl) && dir.magnitude >= 0.1f && currentStamina >= rollStaminaCost && !isAttacking)
         {
+            isRolling = true; // 即座にフラグを立てて追加入力を遮断
             StartCoroutine(RollRoutine(dir));
+            return;
         }
 
         if (Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.E))
@@ -297,7 +300,7 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        if (!isSprinting && !isRolling && !isAttacking)
+        if (!isSprinting && !isAttacking)
         {
             if (regenTimer > 0f)
             {
@@ -326,12 +329,10 @@ public class PlayerController : MonoBehaviour
 
     private IEnumerator RollRoutine(Vector3 inputDir)
     {
-        isRolling = true;
-        isInvincible = true;
-
         currentStamina -= rollStaminaCost;
         regenTimer = regenDelay;
 
+        // ★ 押した瞬間の入力ベクトル（inputDir）のみを使って向きを確定（以降のWASD入力は無視される）
         if (inputDir.magnitude >= 0.1f)
         {
             float targetAngle = Mathf.Atan2(inputDir.x, inputDir.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
@@ -341,8 +342,14 @@ public class PlayerController : MonoBehaviour
         {
             rollDirection = transform.forward;
         }
-
         transform.rotation = Quaternion.LookRotation(rollDirection);
+
+        if (animator != null)
+        {
+            animator.SetTrigger("Roll");
+        }
+
+        isInvincible = true;
 
         float timer = 0f;
         while (timer < rollDuration)
@@ -359,6 +366,11 @@ public class PlayerController : MonoBehaviour
 
         isRolling = false;
         isInvincible = false;
+
+        if (animator != null)
+        {
+            animator.ResetTrigger("Roll");
+        }
     }
 
     private IEnumerator AttackRoutine()
@@ -488,7 +500,7 @@ public class PlayerController : MonoBehaviour
 
     public void TakeDamage(float damage)
     {
-        // 既に死亡、ダウン中、または無敵中の場合は受けつけない
+
         if (isDead || isInvincible || isKnockedDown) return;
 
         currentHealth -= damage;
@@ -548,7 +560,6 @@ public class PlayerController : MonoBehaviour
 
     private void Die()
     {
-        // ★ 重複呼出し（リトライの二重ロード・オブジェクト増殖）を防ぐガード
         if (isDead) return;
         isDead = true;
 
