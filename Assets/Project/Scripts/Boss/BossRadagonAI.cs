@@ -87,7 +87,6 @@ public class BossRadagonAI : MonoBehaviour
         public Transform firingPoint;
     }
 
-    // エクリプスメテオ（極大範囲攻撃）設定
     [System.Serializable]
     public class EclipseMeteorSettings
     {
@@ -137,19 +136,8 @@ public class BossRadagonAI : MonoBehaviour
         public float laserSweep90Weight = 5f;
 
         [Header("--- 大技（必殺技） ---")]
-        [Tooltip("エクリプスメテオを使用するか")]
         public bool enableEclipseMeteor = true;
-        [Tooltip("エクリプスメテオの発生確率（重み）")]
         public float eclipseMeteorWeight = 5f;
-    }
-
-    [System.Serializable]
-    public class BossSplitSettings
-    {
-        public float splitHpThreshold = 0.5f;
-        public GameObject subBossPrefab;
-        public Vector3 spawnOffset = new Vector3(3f, 0f, 0f);
-        public GameObject spawnVfxPrefab;
     }
 
     // ==========================================
@@ -176,17 +164,30 @@ public class BossRadagonAI : MonoBehaviour
     [Header("=== 5. 各攻撃の発生確率（重み）設定 ===")]
     public AttackProbabilities attackWeights;
 
-    [Header("=== 6. 分裂設定 ===")]
-    public BossSplitSettings splitSettings;
-
     [Header("=== 共通・フェーズ設定 ===")]
     public float attackInterval = 2.0f;
     public bool isPhase2 = false;
     public float phase2HpThreshold = 0.5f;
 
+    [Header("=== ★ 第二形態（覚醒演出）設定 ===")]
+    [Tooltip("第二形態移行時に発生させるエフェクト（オーラ、爆発など）")]
+    public GameObject phase2AuraVfxPrefab;
+    [Tooltip("溜め完了時に発生させる大爆発エフェクト")]
+    public GameObject phase2ExplosionVfxPrefab;
+    [Tooltip("覚醒エフェクトを出して溜める時間（秒）")]
+    public float phase2TransitionTime = 2.0f;
+
+    // ★ 魔法回避（サイドステップ）設定
+    [Header("=== ★ 魔法対抗（ステップ回避）設定 ===")]
+    [Tooltip("魔法検知時に回避を発動する確率（0.5 = 50%）")]
+    [Range(0f, 1f)] public float spellDodgeChance = 0.6f;
+    [Tooltip("回避移動のスピード")]
+    public float dodgeSpeed = 12f;
+    [Tooltip("回避にかかる時間（秒）")]
+    public float dodgeDuration = 0.4f;
+
     private float attackTimer = 0f;
     private bool isPerformingAction = false;
-    private bool hasSplit = false;
     private AttackCategory currentAttack = AttackCategory.None;
     private bool isLaserActive = false;
 
@@ -219,12 +220,14 @@ public class BossRadagonAI : MonoBehaviour
         }
 
         isPerformingAction = false;
-        hasSplit = false;
     }
 
     void Update()
     {
         if (player == null) return;
+
+        // ★ HPチェックを最優先で行う
+        CheckPhaseTransition();
 
         // 行動中またはレーザー照射中は移動・回転・攻撃思考をすべて完全停止
         if (isPerformingAction || isLaserActive)
@@ -237,9 +240,6 @@ public class BossRadagonAI : MonoBehaviour
             if (animator != null) animator.SetFloat("Speed", 0f);
             return;
         }
-
-        CheckPhaseTransition();
-        CheckBossSplit();
 
         float distance = Vector3.Distance(transform.position, player.position);
 
@@ -278,74 +278,111 @@ public class BossRadagonAI : MonoBehaviour
             if (bossHealth.currentHealth / bossHealth.maxHealth <= phase2HpThreshold)
             {
                 isPhase2 = true;
-                if (animator != null) animator.SetTrigger("Phase2Transition");
+                isPerformingAction = true;
+
+                StopAllCoroutines();
+                CancelInvoke();
+
+                StartCoroutine(ExecutePhase2Sequence());
             }
         }
     }
 
-    private void CheckBossSplit()
+    private IEnumerator ExecutePhase2Sequence()
     {
-        if (!hasSplit && bossHealth != null && bossHealth.maxHealth > 0)
+        isPerformingAction = true;
+
+        if (agent != null && agent.isOnNavMesh)
         {
-            float currentHpPercent = bossHealth.currentHealth / bossHealth.maxHealth;
-
-            if (currentHpPercent <= splitSettings.splitHpThreshold)
-            {
-                hasSplit = true;
-                ExecuteBossSplit();
-            }
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
         }
-    }
 
-    private void ExecuteBossSplit()
-    {
-        Debug.Log("<color=yellow>【百足のデーモン風ギミック】ボスが部位切断し、サブボスが分裂出現しました！</color>");
+        LookAtPlayer();
 
-        if (splitSettings.subBossPrefab != null)
+        if (animator != null)
         {
-            Vector3 spawnPos = transform.position + transform.TransformDirection(splitSettings.spawnOffset);
-            GameObject subBoss = Instantiate(splitSettings.subBossPrefab, spawnPos, transform.rotation);
-
-            if (splitSettings.spawnVfxPrefab != null)
-            {
-                Instantiate(splitSettings.spawnVfxPrefab, spawnPos, Quaternion.identity);
-            }
+            animator.SetTrigger("Phase2Transition");
         }
+
+        GameObject auraObj = null;
+        if (phase2AuraVfxPrefab != null)
+        {
+            auraObj = Instantiate(phase2AuraVfxPrefab, transform.position, Quaternion.identity, transform);
+            auraObj.transform.localPosition = Vector3.zero;
+            auraObj.transform.localRotation = Quaternion.identity;
+        }
+
+        yield return new WaitForSeconds(phase2TransitionTime);
+
+        if (phase2ExplosionVfxPrefab != null)
+        {
+            GameObject explosionObj = Instantiate(phase2ExplosionVfxPrefab, transform.position, Quaternion.identity);
+            Destroy(explosionObj, 3.0f);
+        }
+
+        if (auraObj != null) Destroy(auraObj);
+
+        yield return new WaitForSeconds(0.4f);
+
+        if (animator != null)
+        {
+            animator.SetTrigger("AreaAttack");
+        }
+
+        yield return StartCoroutine(EclipseMeteorRoutine());
+
+        isPerformingAction = false;
+        attackTimer = attackInterval;
     }
 
     private void ChooseAndExecuteAttack(float distance)
     {
         Dictionary<AttackCategory, float> attackPool = new Dictionary<AttackCategory, float>();
 
-        if (attackWeights.enableMeleeNormal && attackWeights.meleeNormalWeight > 0)
-            attackPool.Add(AttackCategory.MeleeNormal, attackWeights.meleeNormalWeight);
+        if (distance <= meleeAttack.attackRange + 1.0f)
+        {
+            if (attackWeights.enableMeleeNormal && attackWeights.meleeNormalWeight > 0)
+                attackPool.Add(AttackCategory.MeleeNormal, attackWeights.meleeNormalWeight);
 
-        if (attackWeights.enableMeleeHeavy && attackWeights.meleeHeavyWeight > 0)
-            attackPool.Add(AttackCategory.MeleeHeavy, attackWeights.meleeHeavyWeight);
+            if (attackWeights.enableMeleeHeavy && attackWeights.meleeHeavyWeight > 0)
+                attackPool.Add(AttackCategory.MeleeHeavy, attackWeights.meleeHeavyWeight);
 
-        if (attackWeights.enableRangedSingle && attackWeights.rangedSingleWeight > 0)
-            attackPool.Add(AttackCategory.Ranged, attackWeights.rangedSingleWeight);
+            if (attackWeights.enableAreaImpact && attackWeights.areaImpactWeight > 0)
+                attackPool.Add(AttackCategory.Area, attackWeights.areaImpactWeight);
+        }
 
-        if (attackWeights.enableRangedRapid && attackWeights.rangedRapidWeight > 0)
-            attackPool.Add(AttackCategory.RangedRapid, attackWeights.rangedRapidWeight);
+        if (distance >= rangedAttack.minRange)
+        {
+            if (attackWeights.enableRangedSingle && attackWeights.rangedSingleWeight > 0)
+                attackPool.Add(AttackCategory.Ranged, attackWeights.rangedSingleWeight);
 
-        if (attackWeights.enableRangedSpread && attackWeights.rangedSpreadWeight > 0)
-            attackPool.Add(AttackCategory.RangedSpread, attackWeights.rangedSpreadWeight);
+            if (attackWeights.enableRangedRapid && attackWeights.rangedRapidWeight > 0)
+                attackPool.Add(AttackCategory.RangedRapid, attackWeights.rangedRapidWeight);
 
-        if (attackWeights.enableAreaImpact && attackWeights.areaImpactWeight > 0)
-            attackPool.Add(AttackCategory.Area, attackWeights.areaImpactWeight);
+            if (attackWeights.enableRangedSpread && attackWeights.rangedSpreadWeight > 0)
+                attackPool.Add(AttackCategory.RangedSpread, attackWeights.rangedSpreadWeight);
 
-        if (attackWeights.enableLaserStraight && attackWeights.laserStraightWeight > 0)
-            attackPool.Add(AttackCategory.LaserStraight, attackWeights.laserStraightWeight);
+            if (attackWeights.enableLaserStraight && attackWeights.laserStraightWeight > 0)
+                attackPool.Add(AttackCategory.LaserStraight, attackWeights.laserStraightWeight);
+        }
 
-        if (attackWeights.enableLaserSweep360Charge && attackWeights.laserSweep360ChargeWeight > 0)
-            attackPool.Add(AttackCategory.LaserSweep360Charge, attackWeights.laserSweep360ChargeWeight);
+        if (isPhase2)
+        {
+            if (distance <= laser360Attack.maxDistance)
+            {
+                if (attackWeights.enableLaserSweep360Charge && attackWeights.laserSweep360ChargeWeight > 0)
+                    attackPool.Add(AttackCategory.LaserSweep360Charge, attackWeights.laserSweep360ChargeWeight);
 
-        if (attackWeights.enableLaserSweep90 && attackWeights.laserSweep90Weight > 0)
-            attackPool.Add(AttackCategory.LaserSweep90, attackWeights.laserSweep90Weight);
+                if (attackWeights.enableLaserSweep90 && attackWeights.laserSweep90Weight > 0)
+                    attackPool.Add(AttackCategory.LaserSweep90, attackWeights.laserSweep90Weight);
+            }
 
-        if (attackWeights.enableEclipseMeteor && attackWeights.eclipseMeteorWeight > 0)
-            attackPool.Add(AttackCategory.EclipseMeteor, attackWeights.eclipseMeteorWeight);
+            if (attackWeights.enableEclipseMeteor && attackWeights.eclipseMeteorWeight > 0)
+            {
+                attackPool.Add(AttackCategory.EclipseMeteor, attackWeights.eclipseMeteorWeight);
+            }
+        }
 
         if (attackPool.Count == 0) return;
 
@@ -458,7 +495,6 @@ public class BossRadagonAI : MonoBehaviour
             }
         }
 
-        // ロック時間制御
         if (attack == AttackCategory.LaserStraight ||
             attack == AttackCategory.LaserSweep360Charge ||
             attack == AttackCategory.LaserSweep90)
@@ -472,7 +508,6 @@ public class BossRadagonAI : MonoBehaviour
         }
         else if (attack == AttackCategory.EclipseMeteor)
         {
-            // エクリプスメテオ完了まで足を止め切る
             yield return StartCoroutine(EclipseMeteorRoutine());
         }
         else
@@ -483,7 +518,6 @@ public class BossRadagonAI : MonoBehaviour
         isPerformingAction = false;
     }
 
-    // ★ エクリプスメテオ（極大範囲攻撃）の実行コルーチン
     private IEnumerator EclipseMeteorRoutine()
     {
         if (agent != null && agent.isOnNavMesh)
@@ -493,9 +527,8 @@ public class BossRadagonAI : MonoBehaviour
         }
 
         Vector3 targetPos = (player != null) ? player.position : transform.position;
-        targetPos.y = transform.position.y; // 地面高度に合わせる
+        targetPos.y = transform.position.y;
 
-        // 1. 予兆・チャージ演出
         GameObject chargeVfx = null;
         if (eclipseMeteor.chargeVfxPrefab != null)
         {
@@ -503,26 +536,19 @@ public class BossRadagonAI : MonoBehaviour
             float diameter = eclipseMeteor.explosionRadius * 2f;
             chargeVfx.transform.localScale = new Vector3(diameter, 1f, diameter);
 
-            // ★ チャージVFX内のすべての Particle System のループを解除＆強制スケーリング設定
             ParticleSystem[] chargeParticles = chargeVfx.GetComponentsInChildren<ParticleSystem>();
             foreach (var ps in chargeParticles)
             {
                 var main = ps.main;
                 main.scalingMode = ParticleSystemScalingMode.Hierarchy;
-                main.loop = false; // 強制ループ解除
+                main.loop = false;
             }
         }
 
-        // チャージ時間分待機
         yield return new WaitForSeconds(eclipseMeteor.chargeTime);
 
-        // ★ チャージVFXを確実に消去
-        if (chargeVfx != null)
-        {
-            Destroy(chargeVfx);
-        }
+        if (chargeVfx != null) Destroy(chargeVfx);
 
-        // 2. メテオ落下の生成
         Vector3 spawnPos = targetPos + Vector3.up * eclipseMeteor.dropHeight;
         GameObject meteorObj = null;
         if (eclipseMeteor.meteorPrefab != null)
@@ -533,7 +559,6 @@ public class BossRadagonAI : MonoBehaviour
 
         yield return new WaitForSeconds(1.2f);
 
-        // 3. 地面着弾・極大爆発
         if (meteorObj != null) Destroy(meteorObj);
 
         if (eclipseMeteor.impactVfxPrefab != null)
@@ -542,20 +567,17 @@ public class BossRadagonAI : MonoBehaviour
             float diameter = eclipseMeteor.explosionRadius * 2f;
             impactVfx.transform.localScale = new Vector3(diameter, diameter, diameter);
 
-            // ★ 着弾VFX内のすべての Particle System のループを解除
             ParticleSystem[] impactParticles = impactVfx.GetComponentsInChildren<ParticleSystem>();
             foreach (var ps in impactParticles)
             {
                 var main = ps.main;
                 main.scalingMode = ParticleSystemScalingMode.Hierarchy;
-                main.loop = false; // 強制ループ解除
+                main.loop = false;
             }
 
-            // 着弾VFXを2.5秒後に確実に破棄
             Destroy(impactVfx, 2.5f);
         }
 
-        // 4. 極大加害判定
         Collider[] hits = Physics.OverlapSphere(targetPos, eclipseMeteor.explosionRadius);
         foreach (var hit in hits)
         {
@@ -597,10 +619,6 @@ public class BossRadagonAI : MonoBehaviour
         }
     }
 
-    // ===================================================
-    // Animation Events / Invoke用メソッド
-    // ===================================================
-
     public void AE_MeleeHit()
     {
         if (player == null) return;
@@ -623,7 +641,6 @@ public class BossRadagonAI : MonoBehaviour
     }
 
     public void AE_ShootProjectile() => SpawnSingleBullet(Quaternion.identity);
-
     public void AE_ShootProjectileRapid() => StartCoroutine(RapidFireRoutine(3, 0.15f));
 
     private IEnumerator RapidFireRoutine(int count, float interval)
@@ -804,5 +821,123 @@ public class BossRadagonAI : MonoBehaviour
     public void OnLaserFinished()
     {
         isLaserActive = false;
+    }
+
+    // ★ 1. プレイヤーがポーションを飲んだ時（エスト狩り）
+    public void OnPlayerUsedPotion(Vector3 playerPos)
+    {
+        if (!isPerformingAction && !isLaserActive && Vector3.Distance(transform.position, playerPos) > 5f)
+        {
+            Debug.Log("ボスがエスト検知！確定で割り込み遠距離レーザー発射！");
+            StopAllCoroutines();
+            StartCoroutine(PunishPotionRoutine());
+        }
+    }
+
+    private IEnumerator PunishPotionRoutine()
+    {
+        isPerformingAction = true;
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        if (player != null)
+        {
+            LookAtPlayer();
+        }
+
+        if (animator != null)
+        {
+            animator.SetTrigger("LaserAttack");
+        }
+
+        AE_StartLaserStraight();
+
+        yield return new WaitForSeconds(laserAttack.duration + 0.5f);
+
+        isPerformingAction = false;
+    }
+
+    // ★ 2. プレイヤーが魔法を詠唱した時の反応（確率回避）
+    public void OnPlayerCastedSpell()
+    {
+        // 行動中でなく、一定の確率を満たした場合にサイドステップ実行
+        if (!isPerformingAction && !isLaserActive && Random.value <= spellDodgeChance)
+        {
+            Debug.Log("ボスがプレイヤーの魔法詠唱を検知！ステップ回避！");
+            StopAllCoroutines();
+            StartCoroutine(DodgeSpellRoutine());
+        }
+    }
+
+    private IEnumerator DodgeSpellRoutine()
+    {
+        isPerformingAction = true;
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        LookAtPlayer();
+
+        // 左右ランダムな方向を決定（1 = 右, -1 = 左）
+        float sideDirection = (Random.value > 0.5f) ? 1f : -1f;
+        Vector3 dodgeDir = transform.right * sideDirection;
+
+        // ★ 1. まずアニメーショントリガーを叩く
+        if (animator != null)
+        {
+            animator.SetTrigger("Roll");
+        }
+
+        // ★ 2. Animator が実際に Roll ステートに切り替わるまで移動を開始しない（前滑り防止）
+        float waitSafetyTimer = 0f;
+        while (animator != null && !animator.GetCurrentAnimatorStateInfo(0).IsName("Roll") && waitSafetyTimer < 0.2f)
+        {
+            waitSafetyTimer += Time.deltaTime;
+            yield return null; // 1フレーム待機
+        }
+
+        // ★ 3. モーションが確実に始まってから、なめらかに移動（イージング移動）
+        float timer = 0f;
+        while (timer < dodgeDuration)
+        {
+            timer += Time.deltaTime;
+            float progress = timer / dodgeDuration;
+
+            // 前半にしっかり移動し、後半にかけて自然に減速するカーブ
+            float speedMultiplier = Mathf.Sin(progress * Mathf.PI); // 綺麗な加減速カーブ
+            float currentDodgeSpeed = dodgeSpeed * speedMultiplier;
+
+            if (agent != null && agent.isOnNavMesh)
+            {
+                agent.Move(dodgeDir * currentDodgeSpeed * Time.deltaTime);
+            }
+            else
+            {
+                transform.position += dodgeDir * currentDodgeSpeed * Time.deltaTime;
+            }
+
+            yield return null;
+        }
+
+        isPerformingAction = false;
+    }
+
+    // ★ 魔法弾が直前に迫った時に呼ばれる回避処理
+    public void DodgeIncomingSpell()
+    {
+        // 行動中でなく、確率チェックをクリアした場合に回避
+        if (!isPerformingAction && !isLaserActive && Random.value <= spellDodgeChance)
+        {
+            Debug.Log("魔法弾を直前で検知！ジャスト回避！");
+            StopAllCoroutines();
+            StartCoroutine(DodgeSpellRoutine());
+        }
     }
 }

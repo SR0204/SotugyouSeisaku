@@ -33,6 +33,14 @@ public class ThirdPersonCamera : MonoBehaviour
     [Tooltip("ロックオン可能な最大距離")]
     public float maxLockOnDistance = 25.0f;
 
+    [Header("★ ロックオン画角・距離調整設定")]
+    [Tooltip("ロックオン時の最小カメラ距離（超近接時）")]
+    public float minLockOnDistance = 4.5f;
+    [Tooltip("ロックオン時の最大カメラ距離（離れている時）")]
+    public float maxLockOnCameraDistance = 7.0f;
+    [Tooltip("ロックオン時のカメラの高さ補正")]
+    public float lockOnCameraHeight = 2.5f;
+
     private float x = 0.0f;
     private float y = 0.0f;
     private Camera cam;
@@ -85,49 +93,67 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         if (target == null) return;
 
-        // ★ プレイヤーの落下速度（Y軸速度）を計算
+        // プレイヤーの落下速度（Y軸速度）を計算
         float verticalVelocity = (target.position.y - lastTargetPos.y) / Time.deltaTime;
         bool isGrounded = (targetController != null) ? targetController.isGrounded : true;
 
-        // ★ 急激な落下（崖から落ちた時）かどうかを判定
         bool isFallingFast = !isGrounded && verticalVelocity < fallThresholdVelocity;
 
         if (isFallingFast)
         {
-            // 落下中はカメラの高さ（Y座標）移動をほぼ固定（超ゆっくり追従）
             currentTargetY = Mathf.Lerp(currentTargetY, target.position.y, Time.deltaTime * 0.5f);
         }
         else
         {
-            // 通常時はスムーズにY軸追従
             currentTargetY = Mathf.Lerp(currentTargetY, target.position.y, Time.deltaTime * verticalSmoothSpeed);
         }
 
         lastTargetPos = target.position;
 
+        // ==========================================
+        // ★ ロックオン時のカメラ位置計算（画角見切れ防止）
+        // ==========================================
         if (isLockedOn && lockOnTarget != null)
         {
-            Vector3 dirToTarget = lockOnTarget.position - target.position;
-            dirToTarget.y = 0;
+            Vector3 playerPos = new Vector3(target.position.x, currentTargetY, target.position.z);
+            Vector3 enemyPos = lockOnTarget.position;
 
-            if (dirToTarget != Vector3.zero)
+            // 1. プレイヤーから敵への方向と距離を取得
+            Vector3 dirToEnemy = enemyPos - playerPos;
+            float currentDistToEnemy = dirToEnemy.magnitude;
+            dirToEnemy.y = 0;
+            dirToEnemy.Normalize();
+
+            if (dirToEnemy != Vector3.zero)
             {
-                Quaternion targetRotation = Quaternion.LookRotation(dirToTarget);
+                // 2. 敵との距離に応じてカメラの距離を引き直す（オートズームアウト）
+                float targetCamDistance = Mathf.Lerp(minLockOnDistance, maxLockOnCameraDistance, currentDistToEnemy / maxLockOnDistance);
 
-                Vector3 smoothTargetPos = new Vector3(target.position.x, currentTargetY, target.position.z);
-                Vector3 position = smoothTargetPos - (targetRotation * Vector3.forward * distance) + Vector3.up * height;
-                transform.position = Vector3.Lerp(transform.position, position, Time.deltaTime * 10f);
+                // 3. 敵とプレイヤーの中間地点（注視点）を算出
+                Vector3 centerPoint = Vector3.Lerp(playerPos + Vector3.up * 1.2f, enemyPos + lockOnOffset, 0.4f);
 
-                Vector3 lookAtPoint = Vector3.Lerp(smoothTargetPos + Vector3.up * 1.5f, lockOnTarget.position + lockOnOffset, 0.3f);
-                transform.LookAt(lookAtPoint);
+                // 4. カメラの目標位置をセット（プレイヤーの背後方向に引く）
+                Quaternion targetRotation = Quaternion.LookRotation(dirToEnemy);
+                Vector3 desiredCameraPos = playerPos - (targetRotation * Vector3.forward * targetCamDistance) + Vector3.up * lockOnCameraHeight;
 
+                // スムーズに補間
+                transform.position = Vector3.Lerp(transform.position, desiredCameraPos, Time.deltaTime * 8f);
+
+                // 常にプレイヤーと敵が画面に入る中間地点を見つめる
+                transform.LookAt(centerPoint);
+
+                // プレイヤーを敵の方に向ける
                 target.rotation = Quaternion.Slerp(target.rotation, targetRotation, Time.deltaTime * 10f);
 
+                // ロックオン解除後の視点リセット用データ同期
                 Vector3 angles = transform.eulerAngles;
                 x = angles.y;
                 y = angles.x;
             }
         }
+        // ==========================================
+        // 非ロックオン時のカメラ（通常時）
+        // ==========================================
         else
         {
             Quaternion rotation = Quaternion.Euler(y, x, 0);
@@ -140,10 +166,8 @@ public class ThirdPersonCamera : MonoBehaviour
 
             if (isFallingFast)
             {
-                // ★ 落下中はカメラの位置を崖際に残しつつ、下へ落ちていくプレイヤーを注視（見下ろす）
                 transform.LookAt(target.position + Vector3.up * 0.5f);
 
-                // 手動操作の角度座標を現在の注視角度に同期
                 Vector3 angles = transform.eulerAngles;
                 x = angles.y;
                 y = angles.x;

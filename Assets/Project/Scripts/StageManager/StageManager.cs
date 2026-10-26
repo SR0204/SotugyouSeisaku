@@ -308,10 +308,16 @@ public class StageManager : MonoBehaviour
     {
         if (playerCtrl != null)
         {
+            // HP・FP（マナ）と両方のポーションを全回復
             playerCtrl.currentHealth = playerCtrl.maxHealth;
-            playerCtrl.currentEstusCount = playerCtrl.maxEstusCount;
+            playerCtrl.currentFp = playerCtrl.maxFp;
+            playerCtrl.currentHpEstusCount = playerCtrl.hpEstusCount;
+            playerCtrl.currentFpEstusCount = playerCtrl.fpEstusCount;
+
+            // ダメージUI・スライダー表示更新用の呼び出し
             playerCtrl.TakeDamage(0);
-            Debug.Log("休息完了：HPとエスト瓶が全回復しました！");
+
+            Debug.Log("休息完了：HP・FP・ポーションが全回復しました！");
         }
     }
 

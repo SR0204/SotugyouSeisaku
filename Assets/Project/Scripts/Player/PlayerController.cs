@@ -29,11 +29,22 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public float currentHealth;
 
     [Space(5)]
-    [Tooltip("ポーション（エスト瓶）の所持上限数")]
-    public int maxEstusCount = 3;
-    [HideInInspector] public int currentEstusCount;
-    [Tooltip("1回あたりの回復量")]
+    [Tooltip("HPポーションの所持数（デフォルト: 4個）")]
+    public int hpEstusCount = 4;
+    [Tooltip("1回あたりのHP回復量")]
     public float healAmount = 40f;
+
+    [Space(5)]
+    [Tooltip("FPポーションの所持数（デフォルト: 3個）")]
+    public int fpEstusCount = 3;
+    [Tooltip("1回あたりのFP回復量")]
+    public float fpHealAmount = 40f;
+
+    [HideInInspector] public int currentHpEstusCount;
+    [HideInInspector] public int currentFpEstusCount;
+
+    public int currentEstusCount => currentHpEstusCount;
+    public int maxEstusCount => hpEstusCount;
 
     // ==========================================
     // 3. スタミナ設定
@@ -47,6 +58,30 @@ public class PlayerController : MonoBehaviour
     public float staminaRegenRate = 15f;
     [Tooltip("スタミナ消費アクション後、回復が始まるまでの待ち時間（秒）")]
     public float regenDelay = 1.0f;
+
+    // ==========================================
+    // 3-2. 魔法（FP）設定
+    // ==========================================
+    [Header("=== 3-2. 魔法（FP）設定 ===")]
+    public float maxFp = 100f;
+    [HideInInspector] public float currentFp;
+    [Tooltip("魔法1発あたりの消費FP")]
+    public float spellFpCost = 25f;
+    [Tooltip("魔法1発あたりの消費スタミナ")]
+    public float spellStaminaCost = 15f;
+
+    [Tooltip("発射する魔法弾プレハブ")]
+    public GameObject spellPrefab;
+    [Tooltip("魔法の発生位置（手や杖の先端）")]
+    public Transform spellSpawnPoint;
+    [Tooltip("魔法弾の飛行スピード")]
+    public float spellSpeed = 15f;
+
+    [Tooltip("FP表示用のUIスライダー")]
+    public Slider fpSlider;
+
+    private bool isCasting = false;
+    private bool isDrinking = false;
 
     // ==========================================
     // 4. 攻撃・コンボ設定
@@ -102,11 +137,13 @@ public class PlayerController : MonoBehaviour
     [Space(5)]
     [Tooltip("吹っ飛びダウンが発生するダメージの閾値")]
     public float knockdownDamageThreshold = 30f;
+    [Tooltip("ダウン開始から起き上がり完了までの完全不能時間（秒）")]
+    public float knockdownDuration = 3.0f;
 
     [HideInInspector] public bool isRolling = false;
     [HideInInspector] public bool isInvincible = false;
-    [HideInInspector] public bool isKnockedDown = false; // ダウン中フラグ
-    private bool isDead = false; // ★ 死亡・リトライ二重実行防止フラグ
+    [HideInInspector] public bool isKnockedDown = false;
+    private bool isDead = false;
     private Vector3 rollDirection;
 
     // ==========================================
@@ -119,7 +156,6 @@ public class PlayerController : MonoBehaviour
     [Tooltip("基準とするメインカメラのTransform")]
     public Transform cameraTransform;
 
-    // 内部コンポーネント・変数
     private CharacterController controller;
     private Vector3 velocity;
     private Animator animator;
@@ -157,7 +193,8 @@ public class PlayerController : MonoBehaviour
         currentHealth = maxHealth;
         UpdateHealthUI();
 
-        currentEstusCount = maxEstusCount;
+        currentHpEstusCount = hpEstusCount;
+        currentFpEstusCount = fpEstusCount;
         UpdateEstusUI();
 
         currentStamina = maxStamina;
@@ -165,6 +202,18 @@ public class PlayerController : MonoBehaviour
         {
             staminaSlider.maxValue = maxStamina;
             staminaSlider.value = currentStamina;
+        }
+
+        currentFp = maxFp;
+        if (fpSlider == null)
+        {
+            GameObject fpObj = GameObject.Find("FPBar");
+            if (fpObj != null) fpSlider = fpObj.GetComponent<Slider>();
+        }
+        if (fpSlider != null)
+        {
+            fpSlider.maxValue = maxFp;
+            fpSlider.value = currentFp;
         }
 
         isDead = false;
@@ -178,12 +227,31 @@ public class PlayerController : MonoBehaviour
             TakeDamage(9999f);
         }
 
-        // ダウン中の制御
+        // ★ ダウン中の完全入力・移動ブロック（倒れている～起き上がるまで一切のキー操作を無効化）
         if (isKnockedDown)
         {
+            if (animator != null) animator.SetFloat("Speed", 0f);
+
+            if (controller.isGrounded && velocity.y < 0)
+            {
+                velocity.y = -2f;
+            }
+
             velocity.y += gravity * Time.deltaTime;
             controller.Move(velocity * Time.deltaTime);
-            return;
+
+            if (currentStamina < maxStamina)
+            {
+                currentStamina += staminaRegenRate * Time.deltaTime;
+                currentStamina = Mathf.Min(currentStamina, maxStamina);
+
+                if (staminaSlider != null)
+                {
+                    staminaSlider.value = currentStamina;
+                }
+            }
+
+            return; // ★一切のキー入力判定・移動処理を行わずここで完全遮断
         }
 
         bool isGrounded = controller.isGrounded;
@@ -192,7 +260,7 @@ public class PlayerController : MonoBehaviour
             velocity.y = -2f;
         }
 
-        // ★ 1. 最優先ガード：回避中はWASDやキー入力を一切読み込まず、回避移動のみを行って即Return！
+        // 1. 回避中ガード
         if (isRolling)
         {
             Vector3 rollMove = rollDirection * rollSpeed;
@@ -200,16 +268,33 @@ public class PlayerController : MonoBehaviour
             rollMove.y = velocity.y;
 
             controller.Move(rollMove * Time.deltaTime);
-            return; // ★ これ以降の入力読み込み（WASD）・回転計算を完全にシャットアウト
+            return;
         }
 
-        // --- 2. 攻撃中の処理 ---
+        // 2. 魔法詠唱中ガード
+        if (isCasting)
+        {
+            if (animator != null) animator.SetFloat("Speed", 0f);
+
+            velocity.y += gravity * Time.deltaTime;
+            controller.Move(velocity * Time.deltaTime);
+            return;
+        }
+
+        // 3. ポーション飲むモーション中ガード
+        if (isDrinking)
+        {
+            if (animator != null) animator.SetFloat("Speed", 0f);
+
+            velocity.y += gravity * Time.deltaTime;
+            controller.Move(velocity * Time.deltaTime);
+            return;
+        }
+
+        // 4. 攻撃中の処理
         if (isAttacking)
         {
-            if (animator != null)
-            {
-                animator.SetFloat("Speed", 0f);
-            }
+            if (animator != null) animator.SetFloat("Speed", 0f);
 
             bool clickingUI = UnityEngine.EventSystems.EventSystem.current != null &&
                               UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
@@ -226,7 +311,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // --- 3. 入力取得とアクション判定（回避中以外のみ実行） ---
+        // --- 5. 入力取得とアクション判定 ---
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         Vector3 dir = new Vector3(h, 0, v).normalized;
@@ -234,22 +319,52 @@ public class PlayerController : MonoBehaviour
         bool isClickingUI = UnityEngine.EventSystems.EventSystem.current != null &&
                             UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
 
-        if (!isClickingUI && Input.GetMouseButtonDown(0) && currentStamina >= attackStaminaCost && !isAttacking)
+        // 通常攻撃
+        if (!isClickingUI && Input.GetMouseButtonDown(0) && currentStamina >= attackStaminaCost && !isAttacking && !isCasting && !isDrinking)
         {
             StartCoroutine(AttackRoutine());
         }
 
-        // ★ 回避入力判定
-        if (Input.GetKeyDown(KeyCode.LeftControl) && dir.magnitude >= 0.1f && currentStamina >= rollStaminaCost && !isAttacking)
+        // 魔法発射（マウス右クリック）
+        if (!isClickingUI && Input.GetMouseButtonDown(1) && !isAttacking && !isCasting && !isRolling && !isDrinking)
         {
-            isRolling = true; // 即座にフラグを立てて追加入力を遮断
+            if (currentFp >= spellFpCost && currentStamina >= spellStaminaCost)
+            {
+                StartCoroutine(CastSpellRoutine());
+            }
+        }
+
+        // ジャンプ中の攻撃判定
+        if (!isGrounded && !isClickingUI && !isAttacking && !isCasting && !isDrinking)
+        {
+            if (Input.GetMouseButtonDown(0) && currentStamina >= attackStaminaCost)
+            {
+                StartCoroutine(JumpAttackRoutine());
+            }
+            else if (Input.GetMouseButtonDown(1) && currentFp >= spellFpCost && currentStamina >= spellStaminaCost)
+            {
+                StartCoroutine(CastSpellRoutine());
+            }
+        }
+
+        // 回避入力判定
+        if (Input.GetKeyDown(KeyCode.LeftControl) && dir.magnitude >= 0.1f && currentStamina >= rollStaminaCost && !isAttacking && !isCasting && !isDrinking)
+        {
+            isRolling = true;
             StartCoroutine(RollRoutine(dir));
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.E))
+        // HPポーション使用
+        if ((Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.E)) && !isDrinking && !isRolling && !isAttacking && !isCasting)
         {
-            UseEstus();
+            StartCoroutine(UseHpEstusRoutine());
+        }
+
+        // FPポーション使用
+        if ((Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.Q)) && !isDrinking && !isRolling && !isAttacking && !isCasting)
+        {
+            StartCoroutine(UseFpEstusRoutine());
         }
 
         bool wantsToSprint = Input.GetKey(KeyCode.LeftShift);
@@ -265,18 +380,18 @@ public class PlayerController : MonoBehaviour
             isSprinting = false;
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && currentStamina >= jumpStaminaCost)
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && currentStamina >= jumpStaminaCost && !isDrinking)
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             currentStamina -= jumpStaminaCost;
             regenTimer = regenDelay;
         }
 
-        // --- 4. 移動・回転計算 ---
+        // --- 6. 移動・回転計算 ---
         Vector3 moveVelocity = Vector3.zero;
         float currentSpeed = isSprinting ? sprintSpeed : walkSpeed;
 
-        if (dir.magnitude >= 0.1f && !isAttacking)
+        if (dir.magnitude >= 0.1f && !isAttacking && !isCasting && !isDrinking)
         {
             float targetAngle = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
             Vector3 moveDir = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
@@ -289,7 +404,7 @@ public class PlayerController : MonoBehaviour
 
         if (animator != null)
         {
-            if (dir.magnitude >= 0.1f)
+            if (dir.magnitude >= 0.1f && !isCasting && !isDrinking)
             {
                 float animSpeed = isSprinting ? 1.0f : 0.5f;
                 animator.SetFloat("Speed", animSpeed);
@@ -300,7 +415,7 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        if (!isSprinting && !isAttacking)
+        if (!isSprinting && !isAttacking && !isCasting && !isDrinking)
         {
             if (regenTimer > 0f)
             {
@@ -318,7 +433,7 @@ public class PlayerController : MonoBehaviour
             staminaSlider.value = currentStamina;
         }
 
-        // --- 5. 重力加算とまとめて1回だけMove実行 ---
+        // --- 7. 重力加算とMove実行 ---
         velocity.y += gravity * Time.deltaTime;
 
         Vector3 finalMove = moveVelocity;
@@ -332,7 +447,6 @@ public class PlayerController : MonoBehaviour
         currentStamina -= rollStaminaCost;
         regenTimer = regenDelay;
 
-        // ★ 押した瞬間の入力ベクトル（inputDir）のみを使って向きを確定（以降のWASD入力は無視される）
         if (inputDir.magnitude >= 0.1f)
         {
             float targetAngle = Mathf.Atan2(inputDir.x, inputDir.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
@@ -352,14 +466,19 @@ public class PlayerController : MonoBehaviour
         isInvincible = true;
 
         float timer = 0f;
+
         while (timer < rollDuration)
         {
             timer += Time.deltaTime;
+            float progress = timer / rollDuration;
 
             if (timer >= invincibleDuration)
             {
                 isInvincible = false;
             }
+
+            float speedMultiplier = Mathf.Lerp(1.5f, 0.3f, progress);
+            rollSpeed = sprintSpeed * speedMultiplier;
 
             yield return null;
         }
@@ -443,6 +562,77 @@ public class PlayerController : MonoBehaviour
         isAttacking = false;
     }
 
+    private IEnumerator CastSpellRoutine()
+    {
+        isCasting = true;
+
+        currentFp -= spellFpCost;
+        currentStamina -= spellStaminaCost;
+        regenTimer = regenDelay;
+
+        if (fpSlider != null) fpSlider.value = currentFp;
+        if (staminaSlider != null) staminaSlider.value = currentStamina;
+
+        if (animator != null)
+        {
+            animator.SetTrigger("CastSpell");
+        }
+
+        BossRadagonAI boss = FindObjectOfType<BossRadagonAI>();
+        if (boss != null)
+        {
+            //boss.OnPlayerCastedSpell();
+        }
+
+        yield return new WaitForSeconds(0.4f);
+
+        Transform spawnPoint = spellSpawnPoint != null ? spellSpawnPoint : transform;
+        Vector3 spawnPos = spawnPoint.position + transform.forward * 0.5f;
+
+        if (spellPrefab != null)
+        {
+            GameObject spell = Instantiate(spellPrefab, spawnPos, transform.rotation);
+            Rigidbody rb = spell.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.velocity = transform.forward * spellSpeed;
+            }
+            Destroy(spell, 5.0f);
+        }
+
+        yield return new WaitForSeconds(0.3f);
+
+        isCasting = false;
+    }
+
+    private IEnumerator JumpAttackRoutine()
+    {
+        isAttacking = true;
+        currentStamina -= attackStaminaCost;
+        regenTimer = regenDelay;
+
+        if (animator != null) animator.SetTrigger("Attack");
+
+        velocity.y = -15f;
+
+        yield return new WaitForSeconds(0.2f);
+
+        Vector3 attackCenter = transform.position + transform.forward * 1.0f;
+        Collider[] hitColliders = Physics.OverlapSphere(attackCenter, attackRadius * 1.5f);
+
+        foreach (var hitCollider in hitColliders)
+        {
+            BossHealth bossHealth = hitCollider.GetComponent<BossHealth>();
+            if (bossHealth != null)
+            {
+                bossHealth.TakeDamage(attackDamage * 1.5f);
+            }
+        }
+
+        yield return new WaitForSeconds(0.3f);
+        isAttacking = false;
+    }
+
     private void CheckHitContinuous(ComboSettings combo, HashSet<Collider> hitList)
     {
         Vector3 attackCenter = transform.position + transform.forward * combo.attackOffset;
@@ -485,22 +675,82 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void UseEstus()
+    private IEnumerator UseHpEstusRoutine()
     {
-        if (currentEstusCount > 0 && currentHealth < maxHealth)
+        if (currentHpEstusCount > 0 && currentHealth < maxHealth)
         {
-            currentEstusCount--;
+            isDrinking = true;
+
+            if (animator != null)
+            {
+                animator.SetTrigger("DrinkPotion");
+            }
+
+            BossRadagonAI boss = FindObjectOfType<BossRadagonAI>();
+            if (boss != null)
+            {
+                boss.OnPlayerUsedPotion(transform.position);
+            }
+
+            yield return new WaitForSeconds(0.5f);
+
+            currentHpEstusCount--;
             currentHealth += healAmount;
             currentHealth = Mathf.Min(currentHealth, maxHealth);
 
             UpdateHealthUI();
             UpdateEstusUI();
+
+            yield return new WaitForSeconds(0.5f);
+
+            if (animator != null)
+            {
+                animator.ResetTrigger("DrinkPotion");
+            }
+
+            isDrinking = false;
+        }
+    }
+
+    private IEnumerator UseFpEstusRoutine()
+    {
+        if (currentFpEstusCount > 0 && currentFp < maxFp)
+        {
+            isDrinking = true;
+
+            if (animator != null)
+            {
+                animator.SetTrigger("DrinkPotion");
+            }
+
+            BossRadagonAI boss = FindObjectOfType<BossRadagonAI>();
+            if (boss != null)
+            {
+                boss.OnPlayerUsedPotion(transform.position);
+            }
+
+            yield return new WaitForSeconds(0.5f);
+
+            currentFpEstusCount--;
+            currentFp += fpHealAmount;
+            currentFp = Mathf.Min(currentFp, maxFp);
+
+            if (fpSlider != null) fpSlider.value = currentFp;
+            UpdateEstusUI();
+
+            yield return new WaitForSeconds(0.5f);
+
+            if (animator != null)
+            {
+                animator.ResetTrigger("DrinkPotion");
+            }
+
+            isDrinking = false;
         }
     }
 
     public void TakeDamage(float damage)
     {
-
         if (isDead || isInvincible || isKnockedDown) return;
 
         currentHealth -= damage;
@@ -519,6 +769,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // ★ 完全無効化ダウンルーチン
     private IEnumerator KnockdownRoutine()
     {
         isKnockedDown = true;
@@ -526,19 +777,24 @@ public class PlayerController : MonoBehaviour
 
         isAttacking = false;
         isRolling = false;
+        isDrinking = false;
+        isCasting = false;
 
         if (animator != null)
         {
             animator.SetTrigger("KnockedDown");
         }
 
-        yield return new WaitForSeconds(3.5f);
+        // 倒れる～完全に起き上がるまで無効化時間を維持
+        yield return new WaitForSeconds(knockdownDuration);
 
         isKnockedDown = false;
-
-        yield return new WaitForSeconds(0.5f);
-
         isInvincible = false;
+
+        if (animator != null)
+        {
+            animator.ResetTrigger("KnockedDown");
+        }
     }
 
     private void UpdateHealthUI()
@@ -554,7 +810,7 @@ public class PlayerController : MonoBehaviour
     {
         if (estusText != null)
         {
-            estusText.text = "Potion: " + currentEstusCount;
+            estusText.text = $"HP Pot: {currentHpEstusCount}  |  FP Pot: {currentFpEstusCount}";
         }
     }
 

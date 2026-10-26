@@ -11,9 +11,11 @@ public class LaserBeam : MonoBehaviour
     public Color warningColor = Color.red;
     public Color attackColor = Color.cyan;
 
-    [Header("=== 遮蔽物レイヤー設定 ===")]
+    [Header("=== レイヤー設定 ===")]
     [Tooltip("柱や壁（DefaultやEnvironmentなど）のレイヤーを指定")]
-    public LayerMask obstacleMask = ~0; // デフォルトはすべてのレイヤーを対象
+    public LayerMask obstacleMask = ~0;
+    [Tooltip("プレイヤーのレイヤー（またはTagチェック用）")]
+    public LayerMask playerMask = ~0;
 
     private float laserRadius = 1.0f;
     private float laserDistance = 100f; // 射程距離
@@ -46,9 +48,22 @@ public class LaserBeam : MonoBehaviour
         laserDistance = distance;
         laserDamagePerSecond = damage;
 
-        // 実行中の古いレーザーを止めて新しく開始
-        StopAllCoroutines();
+        // ★ 新しいレーザー発射前に古いコルーチンを確実に止めて初期化
+        DisableLaser();
+
         StartCoroutine(LaserRoutine(chargeTime, duration, sweepAngle));
+    }
+
+    /// <summary>
+    /// レーザーを安全に停止・非表示化する
+    /// </summary>
+    public void DisableLaser()
+    {
+        StopAllCoroutines();
+        if (lineRenderer != null)
+        {
+            lineRenderer.enabled = false;
+        }
     }
 
     private IEnumerator LaserRoutine(float warningTime, float duration, float sweepAngle)
@@ -86,14 +101,13 @@ public class LaserBeam : MonoBehaviour
         while (timer < warningTime)
         {
             timer += Time.deltaTime;
-            // 予兆中は正面を指したまま線を伸ばして警告
             transform.localRotation = startRot;
             UpdateLinePositions(laserRadius);
             yield return null;
         }
 
         // ----------------------------------------------------
-        // 2. 本照射（極太レーザーで360度回転＋判定）
+        // 2. 本照射（極太レーザーで回転＋判定）
         // ----------------------------------------------------
         lineRenderer.startWidth = laserRadius * 2f;
         lineRenderer.endWidth = laserRadius * 2f;
@@ -107,7 +121,6 @@ public class LaserBeam : MonoBehaviour
         {
             timer += Time.deltaTime;
 
-            // 本照射中に指定された角度（360度）をスムーズに回転
             if (Mathf.Abs(sweepAngle) > 0.1f)
             {
                 float progress = Mathf.Clamp01(timer / duration);
@@ -117,14 +130,14 @@ public class LaserBeam : MonoBehaviour
 
             float currentHitDistance = UpdateLinePositions(laserRadius);
 
-            // プレイヤーへのヒット判定
+            // ★ プレイヤーとの当たり判定（QueryTriggerInteraction.Ignore で透明トリガーを無視！）
             RaycastHit[] hits = Physics.SphereCastAll(
                 transform.position,
                 laserRadius,
                 transform.forward,
                 currentHitDistance,
-                ~0,
-                QueryTriggerInteraction.Collide
+                playerMask,
+                QueryTriggerInteraction.Ignore
             );
 
             foreach (var hit in hits)
@@ -136,17 +149,10 @@ public class LaserBeam : MonoBehaviour
 
                     if (player != null)
                     {
-                        if (Mathf.Abs(sweepAngle) >= 300f)
+                        if (!hitPlayersThisBeam.Contains(player))
                         {
-                            if (!hitPlayersThisBeam.Contains(player))
-                            {
-                                hitPlayersThisBeam.Add(player);
-                                player.TakeDamage(laserDamagePerSecond);
-                            }
-                        }
-                        else
-                        {
-                            player.TakeDamage(laserDamagePerSecond * Time.deltaTime);
+                            hitPlayersThisBeam.Add(player);
+                            player.TakeDamage(laserDamagePerSecond);
                         }
                     }
                 }
@@ -158,7 +164,7 @@ public class LaserBeam : MonoBehaviour
         // ----------------------------------------------------
         // 3. 終了処理
         // ----------------------------------------------------
-        lineRenderer.enabled = false;
+        DisableLaser();
         transform.localRotation = startRot;
 
         BossRadagonAI bossAI = GetComponentInParent<BossRadagonAI>();
@@ -168,9 +174,6 @@ public class LaserBeam : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 描画位置の更新
-    /// </summary>
     private float UpdateLinePositions(float checkRadius)
     {
         if (lineRenderer == null) return laserDistance;
@@ -182,11 +185,11 @@ public class LaserBeam : MonoBehaviour
 
         if (checkRadius > 0.01f)
         {
-            isHit = Physics.SphereCast(transform.position, checkRadius, transform.forward, out hit, laserDistance, obstacleMask);
+            isHit = Physics.SphereCast(transform.position, checkRadius, transform.forward, out hit, laserDistance, obstacleMask, QueryTriggerInteraction.Ignore);
         }
         else
         {
-            isHit = Physics.Raycast(transform.position, transform.forward, out hit, laserDistance, obstacleMask);
+            isHit = Physics.Raycast(transform.position, transform.forward, out hit, laserDistance, obstacleMask, QueryTriggerInteraction.Ignore);
         }
 
         if (isHit)
