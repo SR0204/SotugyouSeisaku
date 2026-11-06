@@ -400,16 +400,17 @@ public class PlayerController : MonoBehaviour
 
             Quaternion targetRotation = Quaternion.Euler(0f, targetAngle, 0f);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-        }
 
-        if (animator != null)
-        {
-            if (dir.magnitude >= 0.1f && !isCasting && !isDrinking)
+            if (animator != null)
             {
                 float animSpeed = isSprinting ? 1.0f : 0.5f;
                 animator.SetFloat("Speed", animSpeed);
             }
-            else
+        }
+        else
+        {
+            // ★ WASD入力をやめた時は確実に Speed を 0 にリセットして Idle へ戻す
+            if (animator != null && !isCasting && !isDrinking && !isAttacking && !isKnockedDown)
             {
                 animator.SetFloat("Speed", 0f);
             }
@@ -447,6 +448,7 @@ public class PlayerController : MonoBehaviour
         currentStamina -= rollStaminaCost;
         regenTimer = regenDelay;
 
+        // ★ 1. まず入力方向からカメラ基準の進行方向を計算
         if (inputDir.magnitude >= 0.1f)
         {
             float targetAngle = Mathf.Atan2(inputDir.x, inputDir.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
@@ -456,8 +458,14 @@ public class PlayerController : MonoBehaviour
         {
             rollDirection = transform.forward;
         }
-        transform.rotation = Quaternion.LookRotation(rollDirection);
 
+        // ★ 2. アニメーションを再生する前に、プレイヤーの向きを入力方向へ即座に向ける
+        if (rollDirection != Vector3.zero)
+        {
+            transform.rotation = Quaternion.LookRotation(rollDirection);
+        }
+
+        // ★ 3. 向きが確定してからアニメーショントリガーを発火
         if (animator != null)
         {
             animator.SetTrigger("Roll");
@@ -751,29 +759,32 @@ public class PlayerController : MonoBehaviour
 
     public void TakeDamage(float damage)
     {
+        // ★ 無敵中、死亡中、またはダウン〜起き上がり完了までは一切ダメージを受けない（ハメ防止）
         if (isDead || isInvincible || isKnockedDown) return;
 
         currentHealth -= damage;
         currentHealth = Mathf.Max(currentHealth, 0f);
         UpdateHealthUI();
 
+        // 死亡判定
         if (currentHealth <= 0)
         {
             Die();
-            return;
+            return; // ★ 死亡時はここで確実に処理を終了
         }
 
+        // 死亡していない場合のみ大ダメージでダウン発火
         if (damage >= knockdownDamageThreshold)
         {
             StartCoroutine(KnockdownRoutine());
         }
     }
 
-    // ★ 完全無効化ダウンルーチン
+    // ★ 完全無敵保証付きのダウン〜起き上がりルーチン
     private IEnumerator KnockdownRoutine()
     {
         isKnockedDown = true;
-        isInvincible = true;
+        isInvincible = true; // ★ 倒れ始めから無敵開始
 
         isAttacking = false;
         isRolling = false;
@@ -785,9 +796,10 @@ public class PlayerController : MonoBehaviour
             animator.SetTrigger("KnockedDown");
         }
 
-        // 倒れる～完全に起き上がるまで無効化時間を維持
+        // 倒れている時間＋立ち上がる時間（必要に応じてInspectorの knockdownDuration で調整）
         yield return new WaitForSeconds(knockdownDuration);
 
+        // ★ 完全に立ち上がってプレイヤーが操作可能になってから無敵とダウン判定を同時解除！
         isKnockedDown = false;
         isInvincible = false;
 
@@ -819,18 +831,39 @@ public class PlayerController : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
-        this.enabled = false;
+        Debug.Log("プレイヤー死亡… YOU DIED");
 
+        // 1. 進行中の全コルーチン（攻撃・ポーション・ローリング等）を強制停止
+        StopAllCoroutines();
+
+        // 2. 移動フラグ・状態フラグをリセット
+        isAttacking = false;
+        isRolling = false;
+        isDrinking = false;
+        isCasting = false;
+        isKnockedDown = false;
+
+        // 3. 物理判定・移動制御コンポーネントを停止
+        if (controller != null)
+        {
+            controller.enabled = false; // 当たり判定・押し出し判定を無効化
+        }
+
+        // 4. アニメーション（Die）を発火
         if (animator != null)
         {
             animator.SetTrigger("Die");
         }
 
+        // 5. ステージマネージャーへの通知
         StageManager stageManager = FindObjectOfType<StageManager>();
         if (stageManager != null)
         {
             stageManager.OnPlayerDied();
         }
+
+        // 6. 入力スクリプト自身をオフにする
+        this.enabled = false;
     }
 
     public void AE_MeleeHit() { }

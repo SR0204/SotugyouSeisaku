@@ -50,6 +50,9 @@ MonoBehaviour:
   obstacleMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  playerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1 &4345392967253956360
 GameObject:
   m_ObjectHideFlags: 0
@@ -244,11 +247,15 @@ MonoBehaviour:
     enableEclipseMeteor: 1
     eclipseMeteorWeight: 5
   attackInterval: 2
+  attackCooldown: 1.2
   isPhase2: 0
   phase2HpThreshold: 0.5
   phase2AuraVfxPrefab: {fileID: 7641469629739457448, guid: cf9cc20192f53c94e885e0c74a6cdf9c, type: 3}
   phase2ExplosionVfxPrefab: {fileID: 1757419204944954965, guid: 30526ce6d6e7be44ca0b747a5e17a71a, type: 3}
   phase2TransitionTime: 2
+  spellDodgeChance: 0.6
+  dodgeSpeed: 12
+  dodgeDuration: 0.4
 --- !u!120 &3843838150984086227
 LineRenderer:
   serializedVersion: 2

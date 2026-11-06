@@ -195,7 +195,7 @@ MonoBehaviour:
   maxStamina: 150
   currentStamina: 0
   staminaDrainRate: 5
-  staminaRegenRate: 20
+  staminaRegenRate: 50
   regenDelay: 1
   maxFp: 200
   currentFp: 0
@@ -227,6 +227,7 @@ MonoBehaviour:
   jumpStaminaCost: 20
   gravity: -19.62
   knockdownDamageThreshold: 1
+  knockdownDuration: 3
   isRolling: 0
   isInvincible: 0
   isKnockedDown: 0

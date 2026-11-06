@@ -73,7 +73,7 @@ public class BossRadagonAI : MonoBehaviour
     [System.Serializable]
     public class Laser360AttackSettings
     {
-        [Tooltip("360度レーザーの1ヒットあたりのダメージ（一発大ダメージ値）")]
+        [Tooltip("360度レーザーの1ヒットあたりのダメージ")]
         public float damagePerTick = 80f;
         [Tooltip("有効射程距離")]
         public float maxDistance = 20f;
@@ -81,9 +81,9 @@ public class BossRadagonAI : MonoBehaviour
         public float duration = 3.0f;
         [Tooltip("チャージ（予兆）時間（秒）")]
         public float chargeTime = 1.5f;
-        [Tooltip("チャージ中に表示するエフェクト（エネルギー蓄積VFXなど）")]
+        [Tooltip("チャージ中に表示するエフェクト")]
         public GameObject chargeVfxPrefab;
-        [Tooltip("発射・チャージ位置（未指定時は本体・発射位置）")]
+        [Tooltip("発射・チャージ位置")]
         public Transform firingPoint;
     }
 
@@ -94,13 +94,13 @@ public class BossRadagonAI : MonoBehaviour
         public float damage = 150f;
         [Tooltip("チャージ・予兆詠唱時間（秒）")]
         public float chargeTime = 3.0f;
-        [Tooltip("爆破・加害半径（エリア全域をカバーするサイズ）")]
+        [Tooltip("爆破・加害半径")]
         public float explosionRadius = 25f;
-        [Tooltip("メテオ落下の生成高度（頭上何メートルから落ちてくるか）")]
+        [Tooltip("メテオ落下の生成高度")]
         public float dropHeight = 30f;
         [Tooltip("詠唱中のチャージ/魔法陣VFX")]
         public GameObject chargeVfxPrefab;
-        [Tooltip("上空から落ちてくる隕石（メテオ）プレハブ")]
+        [Tooltip("上空から落ちてくる隕石プレハブ")]
         public GameObject meteorPrefab;
         [Tooltip("着弾時の極大爆発VFX")]
         public GameObject impactVfxPrefab;
@@ -155,35 +155,33 @@ public class BossRadagonAI : MonoBehaviour
     [Header("=== 4. 通常レーザー攻撃設定 ===")]
     public LaserAttackSettings laserAttack;
 
-    [Header("=== 4-2. ★ 360度レーザー（チャージ専用） ===")]
+    [Header("=== 4-2. 360度レーザー（チャージ専用） ===")]
     public Laser360AttackSettings laser360Attack;
 
-    [Header("=== 4-3. ★ エクリプスメテオ（極大範囲攻撃） ===")]
+    [Header("=== 4-3. エクリプスメテオ（極大範囲攻撃） ===")]
     public EclipseMeteorSettings eclipseMeteor;
 
     [Header("=== 5. 各攻撃の発生確率（重み）設定 ===")]
     public AttackProbabilities attackWeights;
 
-    [Header("=== 共通・フェーズ設定 ===")]
-    public float attackInterval = 2.0f;
+    [Header("=== 共通・攻撃タイミング設定 ===")]
+    [Tooltip("次の思考に入るまでの基本待機時間（秒）")]
+    public float attackInterval = 1.5f;
+    [Tooltip("攻撃終了後、確実に発生する後隙・待機時間（秒）")]
+    public float attackCooldown = 1.2f;
+
+    [Header("=== フェーズ設定 ===")]
     public bool isPhase2 = false;
     public float phase2HpThreshold = 0.5f;
 
-    [Header("=== ★ 第二形態（覚醒演出）設定 ===")]
-    [Tooltip("第二形態移行時に発生させるエフェクト（オーラ、爆発など）")]
+    [Header("=== 第二形態（覚醒演出）設定 ===")]
     public GameObject phase2AuraVfxPrefab;
-    [Tooltip("溜め完了時に発生させる大爆発エフェクト")]
     public GameObject phase2ExplosionVfxPrefab;
-    [Tooltip("覚醒エフェクトを出して溜める時間（秒）")]
     public float phase2TransitionTime = 2.0f;
 
-    // ★ 魔法回避（サイドステップ）設定
-    [Header("=== ★ 魔法対抗（ステップ回避）設定 ===")]
-    [Tooltip("魔法検知時に回避を発動する確率（0.5 = 50%）")]
+    [Header("=== 魔法対抗（ステップ回避）設定 ===")]
     [Range(0f, 1f)] public float spellDodgeChance = 0.6f;
-    [Tooltip("回避移動のスピード")]
     public float dodgeSpeed = 12f;
-    [Tooltip("回避にかかる時間（秒）")]
     public float dodgeDuration = 0.4f;
 
     private float attackTimer = 0f;
@@ -226,10 +224,10 @@ public class BossRadagonAI : MonoBehaviour
     {
         if (player == null) return;
 
-        // ★ HPチェックを最優先で行う
+        // HPチェックを最優先
         CheckPhaseTransition();
 
-        // 行動中またはレーザー照射中は移動・回転・攻撃思考をすべて完全停止
+        // 行動中またはレーザー照射中は移動・回転・攻撃思考を停止
         if (isPerformingAction || isLaserActive)
         {
             if (agent != null && agent.isOnNavMesh)
@@ -250,7 +248,10 @@ public class BossRadagonAI : MonoBehaviour
             {
                 agent.isStopped = false;
                 agent.SetDestination(player.position);
-                if (animator != null) animator.SetFloat("Speed", agent.velocity.magnitude);
+
+                // ★ Agentが実際に移動中なら固定値 1.0f を Animator に送る（速度ブレ防止）
+                float moveSpeed = (agent.velocity.sqrMagnitude > 0.1f) ? 1.0f : 0f;
+                if (animator != null) animator.SetFloat("Speed", moveSpeed);
             }
             else
             {
@@ -260,14 +261,21 @@ public class BossRadagonAI : MonoBehaviour
             }
         }
 
+        // タイマー更新と攻撃ルーチンの発火
         if (attackTimer > 0)
         {
             attackTimer -= Time.deltaTime;
         }
         else
         {
+            // ★ プレイヤーがダウン中なら追撃を控えてタイマーだけ更新
+            if (playerController != null && playerController.isKnockedDown)
+            {
+                attackTimer = 1.0f;
+                return;
+            }
+
             ChooseAndExecuteAttack(distance);
-            attackTimer = attackInterval;
         }
     }
 
@@ -333,7 +341,7 @@ public class BossRadagonAI : MonoBehaviour
         yield return StartCoroutine(EclipseMeteorRoutine());
 
         isPerformingAction = false;
-        attackTimer = attackInterval;
+        attackTimer = attackInterval + attackCooldown;
     }
 
     private void ChooseAndExecuteAttack(float distance)
@@ -459,42 +467,13 @@ public class BossRadagonAI : MonoBehaviour
                     Invoke("AE_StartLaser90", 0.4f);
                     break;
                 case AttackCategory.EclipseMeteor:
+                    // ★ 修正: エクリプスメテオ時も叩きつけ/詠唱アニメーション（AreaAttack）を発火させ、爆発処理のタイミングを合わせる
                     animator.SetTrigger("AreaAttack");
                     break;
             }
         }
-        else
-        {
-            switch (attack)
-            {
-                case AttackCategory.MeleeNormal:
-                case AttackCategory.MeleeHeavy:
-                    Invoke("AE_MeleeHit", 0.5f);
-                    break;
-                case AttackCategory.Ranged:
-                    Invoke("AE_ShootProjectile", 0.5f);
-                    break;
-                case AttackCategory.RangedRapid:
-                    Invoke("AE_ShootProjectileRapid", 0.5f);
-                    break;
-                case AttackCategory.RangedSpread:
-                    Invoke("AE_ShootProjectileSpread", 0.5f);
-                    break;
-                case AttackCategory.Area:
-                    Invoke("AE_AreaImpact", 0.5f);
-                    break;
-                case AttackCategory.LaserStraight:
-                    Invoke("AE_StartLaserStraight", 0.4f);
-                    break;
-                case AttackCategory.LaserSweep360Charge:
-                    Invoke("AE_StartLaser360Charge", 0.2f);
-                    break;
-                case AttackCategory.LaserSweep90:
-                    Invoke("AE_StartLaser90", 0.4f);
-                    break;
-            }
-        }
 
+        // ★ 技の種類ごとに後隙・待機時間を調整
         if (attack == AttackCategory.LaserStraight ||
             attack == AttackCategory.LaserSweep360Charge ||
             attack == AttackCategory.LaserSweep90)
@@ -510,11 +489,21 @@ public class BossRadagonAI : MonoBehaviour
         {
             yield return StartCoroutine(EclipseMeteorRoutine());
         }
+        else if (attack == AttackCategory.MeleeNormal)
+        {
+            yield return new WaitForSeconds(0.8f); // ★ 0.8秒程度に短縮
+        }
+        else if (attack == AttackCategory.MeleeHeavy || attack == AttackCategory.Area)
+        {
+            yield return new WaitForSeconds(1.2f); // ★ 1.2秒程度に調整
+        }
         else
         {
-            yield return new WaitForSeconds(2.5f);
+            yield return new WaitForSeconds(1.0f);
         }
 
+        // 次の攻撃発動までのタイマーをリセット
+        attackTimer = attackInterval + attackCooldown;
         isPerformingAction = false;
     }
 
@@ -823,7 +812,6 @@ public class BossRadagonAI : MonoBehaviour
         isLaserActive = false;
     }
 
-    // ★ 1. プレイヤーがポーションを飲んだ時（エスト狩り）
     public void OnPlayerUsedPotion(Vector3 playerPos)
     {
         if (!isPerformingAction && !isLaserActive && Vector3.Distance(transform.position, playerPos) > 5f)
@@ -851,6 +839,7 @@ public class BossRadagonAI : MonoBehaviour
 
         if (animator != null)
         {
+            // ★ Animator の Parameter 名「LaserAttack」と完全一致しているか確認
             animator.SetTrigger("LaserAttack");
         }
 
@@ -859,12 +848,11 @@ public class BossRadagonAI : MonoBehaviour
         yield return new WaitForSeconds(laserAttack.duration + 0.5f);
 
         isPerformingAction = false;
+        attackTimer = attackInterval + attackCooldown;
     }
 
-    // ★ 2. プレイヤーが魔法を詠唱した時の反応（確率回避）
     public void OnPlayerCastedSpell()
     {
-        // 行動中でなく、一定の確率を満たした場合にサイドステップ実行
         if (!isPerformingAction && !isLaserActive && Random.value <= spellDodgeChance)
         {
             Debug.Log("ボスがプレイヤーの魔法詠唱を検知！ステップ回避！");
@@ -885,33 +873,28 @@ public class BossRadagonAI : MonoBehaviour
 
         LookAtPlayer();
 
-        // 左右ランダムな方向を決定（1 = 右, -1 = 左）
         float sideDirection = (Random.value > 0.5f) ? 1f : -1f;
         Vector3 dodgeDir = transform.right * sideDirection;
 
-        // ★ 1. まずアニメーショントリガーを叩く
         if (animator != null)
         {
             animator.SetTrigger("Roll");
         }
 
-        // ★ 2. Animator が実際に Roll ステートに切り替わるまで移動を開始しない（前滑り防止）
         float waitSafetyTimer = 0f;
         while (animator != null && !animator.GetCurrentAnimatorStateInfo(0).IsName("Roll") && waitSafetyTimer < 0.2f)
         {
             waitSafetyTimer += Time.deltaTime;
-            yield return null; // 1フレーム待機
+            yield return null;
         }
 
-        // ★ 3. モーションが確実に始まってから、なめらかに移動（イージング移動）
         float timer = 0f;
         while (timer < dodgeDuration)
         {
             timer += Time.deltaTime;
             float progress = timer / dodgeDuration;
 
-            // 前半にしっかり移動し、後半にかけて自然に減速するカーブ
-            float speedMultiplier = Mathf.Sin(progress * Mathf.PI); // 綺麗な加減速カーブ
+            float speedMultiplier = Mathf.Sin(progress * Mathf.PI);
             float currentDodgeSpeed = dodgeSpeed * speedMultiplier;
 
             if (agent != null && agent.isOnNavMesh)
@@ -927,12 +910,11 @@ public class BossRadagonAI : MonoBehaviour
         }
 
         isPerformingAction = false;
+        attackTimer = attackInterval;
     }
 
-    // ★ 魔法弾が直前に迫った時に呼ばれる回避処理
     public void DodgeIncomingSpell()
     {
-        // 行動中でなく、確率チェックをクリアした場合に回避
         if (!isPerformingAction && !isLaserActive && Random.value <= spellDodgeChance)
         {
             Debug.Log("魔法弾を直前で検知！ジャスト回避！");
