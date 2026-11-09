@@ -22,15 +22,21 @@ public class BossHealth : MonoBehaviour
     private BossRadagonAI bossAI;
     private bool isDead = false; // 二重死亡処理の防止フラグ
 
-    void Start()
+    // ★ Start を Awake に変更します
+    void Awake()
     {
         currentHealth = maxHealth;
-        UpdateUI();
 
         // ★ 必要なコンポーネントを自動取得
         animator = GetComponent<Animator>();
         agent = GetComponent<NavMeshAgent>();
         bossAI = GetComponent<BossRadagonAI>();
+    }
+
+    void Start()
+    {
+        // UIの初期表示だけ Start で行うと安心です
+        UpdateUI();
     }
 
     public void TakeDamage(float damage)

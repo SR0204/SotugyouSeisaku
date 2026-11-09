@@ -210,6 +210,9 @@ public class BossRadagonAI : MonoBehaviour
         animator = GetComponent<Animator>();
         bossHealth = GetComponent<BossHealth>();
 
+        // ★ 戦闘開始時は必ず第一形態（isPhase2 = false）に強制リセット！
+        isPhase2 = false;
+
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
         {
@@ -308,11 +311,13 @@ public class BossRadagonAI : MonoBehaviour
 
         LookAtPlayer();
 
+        // 第二形態移行アニメーション
         if (animator != null)
         {
             animator.SetTrigger("Phase2Transition");
         }
 
+        // 覚醒オーラエフェクト
         GameObject auraObj = null;
         if (phase2AuraVfxPrefab != null)
         {
@@ -323,6 +328,7 @@ public class BossRadagonAI : MonoBehaviour
 
         yield return new WaitForSeconds(phase2TransitionTime);
 
+        // 覚醒爆発エフェクト
         if (phase2ExplosionVfxPrefab != null)
         {
             GameObject explosionObj = Instantiate(phase2ExplosionVfxPrefab, transform.position, Quaternion.identity);
@@ -333,13 +339,7 @@ public class BossRadagonAI : MonoBehaviour
 
         yield return new WaitForSeconds(0.4f);
 
-        if (animator != null)
-        {
-            animator.SetTrigger("AreaAttack");
-        }
-
-        yield return StartCoroutine(EclipseMeteorRoutine());
-
+        // ★ 移行演出が終わったら通常行動へ復帰（いきなり大技を出さない）
         isPerformingAction = false;
         attackTimer = attackInterval + attackCooldown;
     }

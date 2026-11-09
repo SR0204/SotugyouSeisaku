@@ -102,15 +102,14 @@ public class StageManager : MonoBehaviour
                     }
                 }
 
-                bossSelectPanel.SetActive(false);
+                // ★ 起動時はボス選択UIを表示してマウスカーソルを解放
+                bossSelectPanel.SetActive(true);
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
             }
         }
 
-        // 2. Player 生成
-        SpawnPlayer(healthSlider, staminaSlider, estusText);
-
-        // 3. 最初は休息エリアを表示
-        ShowRestArea();
+        // ★ 起動時はステージ・プレイヤーを生成せず、ボタン選択待ちにする（落下事故防止）
     }
 
     void SpawnPlayer(Slider hpSlider, Slider stSlider, TextMeshProUGUI estText)
@@ -119,7 +118,6 @@ public class StageManager : MonoBehaviour
 
         if (playerPrefab != null)
         {
-            // 仮位置で生成
             currentPlayerInstance = Instantiate(playerPrefab, playerPosition, Quaternion.identity);
             playerCtrl = currentPlayerInstance.GetComponent<PlayerController>();
 
@@ -130,15 +128,20 @@ public class StageManager : MonoBehaviour
                 playerCtrl.estusText = estText;
             }
 
+            // ★ カメラターゲットのセット ＋ 敵の方向を向かせるリセットを実行
             if (Camera.main != null)
             {
                 ThirdPersonCamera cam = Camera.main.GetComponent<ThirdPersonCamera>();
-                if (cam != null) cam.target = currentPlayerInstance.transform;
+                if (cam != null)
+                {
+                    cam.target = currentPlayerInstance.transform;
+                    cam.InitCameraPosition(); // ★ カメラアングルとプレイヤーの向きを初期化
+                }
             }
         }
     }
 
-    // ★ プレイヤーの自動安全接地テレポート
+    // ★ プレイヤーの安全接地テレポート（レイキャストの誤検知を排除）
     private void TeleportPlayer(Vector3 targetPos)
     {
         if (currentPlayerInstance == null) return;
@@ -146,6 +149,7 @@ public class StageManager : MonoBehaviour
         CharacterController cc = currentPlayerInstance.GetComponent<CharacterController>();
         Rigidbody rb = currentPlayerInstance.GetComponent<Rigidbody>();
 
+        // 1. 位置更新を妨げるコンポーネントを一時オフ
         if (cc != null) cc.enabled = false;
 
         if (rb != null)
@@ -154,16 +158,13 @@ public class StageManager : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        // ★ 真下の床をRaycastで検知し、すり抜けない高さに着地させる
+        // 2. 指定された座標（+0.2f 浮かせた高さ）に配置
         Vector3 finalPos = targetPos;
-        RaycastHit hit;
-        if (Physics.Raycast(targetPos + Vector3.up * 10f, Vector3.down, out hit, 50f))
-        {
-            finalPos.y = hit.point.y + 0.1f; // 床の上に確実に乗せる
-        }
+        finalPos.y += 0.2f;
 
         currentPlayerInstance.transform.position = finalPos;
 
+        // 3. コンポーネントを再有効化
         if (cc != null) cc.enabled = true;
     }
 
@@ -171,6 +172,7 @@ public class StageManager : MonoBehaviour
     {
         if (isStageActive && currentBossInstance == null)
         {
+            // ボスオブジェクトが破棄（Destroy）されたことを検知して発火
             OnBossDefeated();
         }
     }
@@ -184,7 +186,15 @@ public class StageManager : MonoBehaviour
             bossHPSlider.gameObject.SetActive(false);
         }
 
-        Debug.Log("ボス撃破！休息エリアを表示します。");
+        Debug.Log("ボス撃破！余韻を残して休息エリアを表示します。");
+
+        // ★ 撃破後、少しの間（2.5秒）勝利の余韻を持たせてから休息エリアに切り替える
+        StartCoroutine(TransitionToRestAreaRoutine());
+    }
+
+    private IEnumerator TransitionToRestAreaRoutine()
+    {
+        yield return new WaitForSeconds(2.5f);
         ShowRestArea();
     }
 
@@ -201,8 +211,9 @@ public class StageManager : MonoBehaviour
             Physics.SyncTransforms(); // 地形物理の即時更新
         }
 
+        // 休息エリア切替時はプレイヤー生成＆テレポート＆回復を行ってUIを表示
+        SpawnPlayer(healthSlider, staminaSlider, estusText);
         TeleportPlayer(playerPosition);
-
         RestAndHeal();
 
         if (bossSelectPanel != null)
@@ -213,7 +224,7 @@ public class StageManager : MonoBehaviour
         }
     }
 
-    // ★ ボス選択＆アリーナ生成
+    // ★ ボス選択＆アリーナ生成（ボタン押下時に一括安全生成）
     public void SelectAndStartBoss(int bossIndex)
     {
         if (bossIndex < 0 || bossIndex >= bossPrefabs.Length) return;
@@ -230,7 +241,7 @@ public class StageManager : MonoBehaviour
             Destroy(currentStageInstance);
         }
 
-        // アリーナの決定
+        // 1. アリーナの決定と生成（床を最優先配置）
         GameObject selectedArenaPrefab = null;
 
         if (bossSpecificArenas != null && bossIndex < bossSpecificArenas.Length && bossSpecificArenas[bossIndex] != null)
@@ -243,23 +254,22 @@ public class StageManager : MonoBehaviour
             selectedArenaPrefab = arenaPrefabs[randomIndex];
         }
 
-        // アリーナ生成
         if (selectedArenaPrefab != null)
         {
             currentStageInstance = Instantiate(selectedArenaPrefab, stagePosition, Quaternion.identity);
             Physics.SyncTransforms(); // ★ 生成したアリーナの物理コライダーを即時同期
         }
 
-        // プレイヤーを着地テレポート
+        // 2. 床が固定されてからプレイヤーを生成＆安全配置
+        SpawnPlayer(healthSlider, staminaSlider, estusText);
         TeleportPlayer(playerPosition);
 
-        // ボス生成処理
+        // 3. ボス生成処理
         if (bossPrefabs[bossIndex] != null)
         {
-            // 1. 生成
             currentBossInstance = Instantiate(bossPrefabs[bossIndex], bossPosition, Quaternion.identity);
 
-            // 2. 移動を阻害するコンポーネントを一時停止
+            // コンポーネントの一時停止（位置ずれ防止）
             CharacterController cc = currentBossInstance.GetComponent<CharacterController>();
             UnityEngine.AI.NavMeshAgent agent = currentBossInstance.GetComponent<UnityEngine.AI.NavMeshAgent>();
             Collider bossCol = currentBossInstance.GetComponent<Collider>();
@@ -268,36 +278,46 @@ public class StageManager : MonoBehaviour
             if (agent != null) agent.enabled = false;
             if (bossCol != null) bossCol.enabled = false;
 
-            // 3. 真下の床の高さを Raycast で取得
+            // 高さ補正
             Vector3 spawnPos = bossPosition;
             RaycastHit hit;
-            if (Physics.Raycast(bossPosition + Vector3.up * 20f, Vector3.down, out hit, 100f))
+            if (Physics.Raycast(bossPosition + Vector3.up * 3f, Vector3.down, out hit, 10f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
             {
-                // ★ 床の表面（hit.point.y）から大きめに持ち上げる（例: + 0.5f 〜 1.0f）
-                // CharacterController や NavMesh の接地判定で自然に床の上に着地します
-                spawnPos.y = hit.point.y + 0.5f;
+                spawnPos.y = hit.point.y + 0.2f;
+            }
+            else
+            {
+                spawnPos.y = bossPosition.y + 0.2f;
             }
 
-            // 4. トランスフォームの位置を変更
             currentBossInstance.transform.position = spawnPos;
 
-            // 5. 先に CharacterController / Collider を戻す
             if (bossCol != null) bossCol.enabled = true;
             if (cc != null) cc.enabled = true;
 
-            // 6. 最後に NavMeshAgent を Warp して有効化
             if (agent != null)
             {
                 agent.Warp(spawnPos);
                 agent.enabled = true;
             }
 
-            // 7. UI設定
+            // UI設定
             BossHealth bossHealth = currentBossInstance.GetComponent<BossHealth>();
             if (bossHealth != null && bossHPSlider != null)
             {
                 bossHPSlider.gameObject.SetActive(true);
                 bossHealth.bossHPSlider = bossHPSlider;
+            }
+
+            // カメラのターゲットセット＆敵方向自動ロックオン
+            if (Camera.main != null)
+            {
+                ThirdPersonCamera cam = Camera.main.GetComponent<ThirdPersonCamera>();
+                if (cam != null)
+                {
+                    cam.target = currentPlayerInstance.transform;
+                    cam.InitCameraPosition(); // 敵を検出して自動ロックオン＆正対
+                }
             }
         }
 
@@ -314,7 +334,7 @@ public class StageManager : MonoBehaviour
             playerCtrl.currentHpEstusCount = playerCtrl.hpEstusCount;
             playerCtrl.currentFpEstusCount = playerCtrl.fpEstusCount;
 
-            // ダメージUI・スライダー表示更新用の呼び出し
+            // UI表示更新
             playerCtrl.TakeDamage(0);
 
             Debug.Log("休息完了：HP・FP・ポーションが全回復しました！");
@@ -352,7 +372,7 @@ public class StageManager : MonoBehaviour
             gameOverText.gameObject.SetActive(false);
         }
 
-        SpawnPlayer(healthSlider, staminaSlider, estusText);
+        // 死亡時は休息エリアへ復帰
         ShowRestArea();
     }
 }

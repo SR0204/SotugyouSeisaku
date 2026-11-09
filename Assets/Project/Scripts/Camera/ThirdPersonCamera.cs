@@ -42,7 +42,7 @@ public class ThirdPersonCamera : MonoBehaviour
     public float lockOnCameraHeight = 2.5f;
 
     private float x = 0.0f;
-    private float y = 0.0f;
+    private float y = 15.0f; // ★ 初期角度を15度に明示設定
     private Camera cam;
 
     private float currentTargetY;
@@ -52,19 +52,57 @@ public class ThirdPersonCamera : MonoBehaviour
     void Start()
     {
         cam = GetComponent<Camera>();
-        Vector3 angles = transform.eulerAngles;
-        x = angles.y;
-        y = angles.x;
-
-        if (target != null)
-        {
-            currentTargetY = target.position.y;
-            lastTargetPos = target.position;
-            targetController = target.GetComponent<CharacterController>();
-        }
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+
+        if (target != null)
+        {
+            InitCameraPosition();
+        }
+    }
+
+    // ★ ゲーム開始時・ターゲット切り替え時のカメラ角度・位置初期化
+    public void InitCameraPosition()
+    {
+        if (target == null) return;
+
+        currentTargetY = target.position.y;
+        lastTargetPos = target.position;
+        targetController = target.GetComponent<CharacterController>();
+
+        // 1. 周囲のボス（敵）を検索して、始まった瞬間に敵の方を向かせる＆自動ロックオン
+        BossHealth enemy = FindNearestEnemy();
+        if (enemy != null)
+        {
+            lockOnTarget = enemy.transform;
+            isLockedOn = true;
+            if (lockOnIcon != null) lockOnIcon.gameObject.SetActive(true);
+
+            Vector3 dirToEnemy = enemy.transform.position - target.position;
+            dirToEnemy.y = 0;
+            if (dirToEnemy != Vector3.zero)
+            {
+                Quaternion enemyRot = Quaternion.LookRotation(dirToEnemy);
+                x = enemyRot.eulerAngles.y;
+                target.rotation = enemyRot;
+            }
+        }
+        else
+        {
+            isLockedOn = false;
+            lockOnTarget = null;
+            if (lockOnIcon != null) lockOnIcon.gameObject.SetActive(false);
+            x = target.eulerAngles.y;
+        }
+
+        y = 15.0f; // ★ 15度（自然な見下ろし角度）に固定
+
+        // 2. 初回フレームの位置計算
+        Quaternion rotation = Quaternion.Euler(y, x, 0);
+        Vector3 targetPosition = target.position + Vector3.up * height;
+        transform.position = targetPosition - (rotation * Vector3.forward * distance);
+        transform.rotation = rotation;
     }
 
     void Update()
@@ -111,14 +149,13 @@ public class ThirdPersonCamera : MonoBehaviour
         lastTargetPos = target.position;
 
         // ==========================================
-        // ★ ロックオン時のカメラ位置計算（画角見切れ防止）
+        // ★ ロックオン時のカメラ位置計算
         // ==========================================
         if (isLockedOn && lockOnTarget != null)
         {
             Vector3 playerPos = new Vector3(target.position.x, currentTargetY, target.position.z);
             Vector3 enemyPos = lockOnTarget.position;
 
-            // 1. プレイヤーから敵への方向と距離を取得
             Vector3 dirToEnemy = enemyPos - playerPos;
             float currentDistToEnemy = dirToEnemy.magnitude;
             dirToEnemy.y = 0;
@@ -126,29 +163,22 @@ public class ThirdPersonCamera : MonoBehaviour
 
             if (dirToEnemy != Vector3.zero)
             {
-                // 2. 敵との距離に応じてカメラの距離を引き直す（オートズームアウト）
                 float targetCamDistance = Mathf.Lerp(minLockOnDistance, maxLockOnCameraDistance, currentDistToEnemy / maxLockOnDistance);
-
-                // 3. 敵とプレイヤーの中間地点（注視点）を算出
                 Vector3 centerPoint = Vector3.Lerp(playerPos + Vector3.up * 1.2f, enemyPos + lockOnOffset, 0.4f);
 
-                // 4. カメラの目標位置をセット（プレイヤーの背後方向に引く）
                 Quaternion targetRotation = Quaternion.LookRotation(dirToEnemy);
                 Vector3 desiredCameraPos = playerPos - (targetRotation * Vector3.forward * targetCamDistance) + Vector3.up * lockOnCameraHeight;
 
-                // スムーズに補間
                 transform.position = Vector3.Lerp(transform.position, desiredCameraPos, Time.deltaTime * 8f);
-
-                // 常にプレイヤーと敵が画面に入る中間地点を見つめる
                 transform.LookAt(centerPoint);
 
-                // プレイヤーを敵の方に向ける
                 target.rotation = Quaternion.Slerp(target.rotation, targetRotation, Time.deltaTime * 10f);
 
-                // ロックオン解除後の視点リセット用データ同期
+                // ★ 安全な角度同期（オイラー角壊れ防止）
                 Vector3 angles = transform.eulerAngles;
                 x = angles.y;
-                y = angles.x;
+                float clampedX = angles.x > 180f ? angles.x - 360f : angles.x;
+                y = Mathf.Clamp(clampedX, yMinLimit, yMaxLimit);
             }
         }
         // ==========================================
@@ -164,18 +194,28 @@ public class ThirdPersonCamera : MonoBehaviour
 
             transform.position = position;
 
+            // ★ LookAt で y の値を壊さないように制御
             if (isFallingFast)
             {
                 transform.LookAt(target.position + Vector3.up * 0.5f);
-
-                Vector3 angles = transform.eulerAngles;
-                x = angles.y;
-                y = angles.x;
+                x = transform.eulerAngles.y;
             }
             else
             {
                 transform.rotation = rotation;
             }
+        }
+    }
+
+    // ★ 開始時に自動で最寄りの敵をロックオンするメソッド
+    public void StartLockOnNearestEnemy()
+    {
+        BossHealth nearestEnemy = FindNearestEnemy();
+        if (nearestEnemy != null)
+        {
+            lockOnTarget = nearestEnemy.transform;
+            isLockedOn = true;
+            if (lockOnIcon != null) lockOnIcon.gameObject.SetActive(true);
         }
     }
 
@@ -189,13 +229,7 @@ public class ThirdPersonCamera : MonoBehaviour
         }
         else
         {
-            BossHealth nearestEnemy = FindNearestEnemy();
-            if (nearestEnemy != null)
-            {
-                lockOnTarget = nearestEnemy.transform;
-                isLockedOn = true;
-                if (lockOnIcon != null) lockOnIcon.gameObject.SetActive(true);
-            }
+            StartLockOnNearestEnemy();
         }
     }
 
@@ -213,12 +247,8 @@ public class ThirdPersonCamera : MonoBehaviour
 
             if (dist < minDistance)
             {
-                Vector3 screenPos = cam.WorldToScreenPoint(enemy.transform.position);
-                if (screenPos.z > 0)
-                {
-                    minDistance = dist;
-                    nearest = enemy;
-                }
+                minDistance = dist;
+                nearest = enemy;
             }
         }
 
