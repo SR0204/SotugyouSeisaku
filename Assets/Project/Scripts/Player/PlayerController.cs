@@ -766,6 +766,19 @@ public class PlayerController : MonoBehaviour
         currentHealth = Mathf.Max(currentHealth, 0f);
         UpdateHealthUI();
 
+        // ★ 追加：被弾時のカメラシェイク（大ダメージ時は強めに揺らす）
+        if (ThirdPersonCamera.Instance != null)
+        {
+            if (damage >= knockdownDamageThreshold)
+            {
+                ThirdPersonCamera.Instance.ShakeCamera(0.25f, 0.35f);
+            }
+            else
+            {
+                ThirdPersonCamera.Instance.ShakeCamera(0.12f, 0.18f);
+            }
+        }
+
         // 死亡判定
         if (currentHealth <= 0)
         {

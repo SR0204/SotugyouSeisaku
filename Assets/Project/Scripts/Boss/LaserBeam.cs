@@ -87,7 +87,8 @@ public class LaserBeam : MonoBehaviour
             }
         }
 
-        Quaternion startRot = transform.localRotation;
+        // ★ 変更点1：localRotation ではなくワールドの rotation を基準にする
+        Quaternion startWorldRot = transform.rotation;
 
         // ----------------------------------------------------
         // 1. 予兆（赤い警告線で発射方向と長さを提示）
@@ -101,7 +102,8 @@ public class LaserBeam : MonoBehaviour
         while (timer < warningTime)
         {
             timer += Time.deltaTime;
-            transform.localRotation = startRot;
+            // ★ 変更点2：ワールド回転を固定
+            transform.rotation = startWorldRot;
             UpdateLinePositions(laserRadius);
             yield return null;
         }
@@ -116,6 +118,8 @@ public class LaserBeam : MonoBehaviour
 
         HashSet<PlayerController> hitPlayersThisBeam = new HashSet<PlayerController>();
 
+        float forwardOffset = laserRadius + 0.6f;
+
         timer = 0f;
         while (timer < duration)
         {
@@ -125,17 +129,21 @@ public class LaserBeam : MonoBehaviour
             {
                 float progress = Mathf.Clamp01(timer / duration);
                 float currentAngle = Mathf.Lerp(0f, sweepAngle, progress);
-                transform.localRotation = startRot * Quaternion.Euler(0, currentAngle, 0);
+                // ★ 変更点3：ワールド回転ベースで薙ぎ払い
+                transform.rotation = startWorldRot * Quaternion.Euler(0, currentAngle, 0);
             }
 
             float currentHitDistance = UpdateLinePositions(laserRadius);
 
-            // ★ プレイヤーとの当たり判定（QueryTriggerInteraction.Ignore で透明トリガーを無視！）
+            // 発射起点より前方にずらして判定開始（背中への判定漏れ防止）
+            Vector3 castOrigin = transform.position + transform.forward * forwardOffset;
+            float adjustedDistance = Mathf.Max(0.1f, currentHitDistance - forwardOffset);
+
             RaycastHit[] hits = Physics.SphereCastAll(
-                transform.position,
+                castOrigin,
                 laserRadius,
                 transform.forward,
-                currentHitDistance,
+                adjustedDistance,
                 playerMask,
                 QueryTriggerInteraction.Ignore
             );
@@ -144,6 +152,13 @@ public class LaserBeam : MonoBehaviour
             {
                 if (hit.collider.CompareTag("Player"))
                 {
+                    // プレイヤーがボスの背中側にいる場合は無視する
+                    Vector3 toPlayer = hit.collider.transform.position - transform.position;
+                    if (Vector3.Dot(transform.forward, toPlayer) <= 0f)
+                    {
+                        continue;
+                    }
+
                     PlayerController player = hit.collider.GetComponent<PlayerController>();
                     if (player == null) player = hit.collider.GetComponentInParent<PlayerController>();
 
@@ -165,7 +180,8 @@ public class LaserBeam : MonoBehaviour
         // 3. 終了処理
         // ----------------------------------------------------
         DisableLaser();
-        transform.localRotation = startRot;
+        // ★ 変更点4：終了時もワールド回転を戻す
+        transform.rotation = startWorldRot;
 
         BossRadagonAI bossAI = GetComponentInParent<BossRadagonAI>();
         if (bossAI != null)

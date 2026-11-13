@@ -614,6 +614,12 @@ public class BossRadagonAI : MonoBehaviour
         float dist = Vector3.Distance(transform.position, player.position);
         if (dist <= meleeAttack.attackRange + 1.5f && playerController != null)
         {
+            // ★ 追加：ボスの正面（前方120度以内）にプレイヤーがいるか判定
+            Vector3 dirToPlayer = (player.position - transform.position).normalized;
+            dirToPlayer.y = 0f;
+            float angle = Vector3.Angle(transform.forward, dirToPlayer);
+            if (angle > 60f) return; // 正面から左右60度（計120度）より外なら当たらない
+
             Vector3 originPos = transform.position + Vector3.up * 1.0f;
             Vector3 targetPos = player.position + Vector3.up * 1.0f;
             Vector3 dir = (targetPos - originPos).normalized;

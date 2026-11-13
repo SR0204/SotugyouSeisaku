@@ -5,6 +5,8 @@ using UnityEngine.UI;
 
 public class ThirdPersonCamera : MonoBehaviour
 {
+    public static ThirdPersonCamera Instance; // ★ 追加：どこからでも呼び出せるようにする
+
     [Header("追従設定")]
     public Transform target;
     public float distance = 4.0f;
@@ -49,8 +51,13 @@ public class ThirdPersonCamera : MonoBehaviour
     private CharacterController targetController;
     private Vector3 lastTargetPos;
 
+    // ★ 追加：カメラシェイク用変数
+    private float shakeTimer = 0f;
+    private float shakeMagnitude = 0f;
+
     void Start()
     {
+        Instance = this; // ★ 追加
         cam = GetComponent<Camera>();
 
         Cursor.lockState = CursorLockMode.Locked;
@@ -205,6 +212,25 @@ public class ThirdPersonCamera : MonoBehaviour
                 transform.rotation = rotation;
             }
         }
+
+        // ==========================================
+        // ★ 追加：カメラシェイク（画面揺れ）処理
+        // ==========================================
+        if (shakeTimer > 0f)
+        {
+            shakeTimer -= Time.deltaTime;
+            Vector3 shakeOffset = Random.insideUnitSphere * shakeMagnitude;
+            transform.position += shakeOffset;
+        }
+    }
+
+    /// <summary>
+    /// ★ 追加：外部からカメラを揺らすメソッド
+    /// </summary>
+    public void ShakeCamera(float duration = 0.15f, float magnitude = 0.25f)
+    {
+        shakeTimer = duration;
+        shakeMagnitude = magnitude;
     }
 
     // ★ 開始時に自動で最寄りの敵をロックオンするメソッド

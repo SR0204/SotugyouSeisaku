@@ -11,7 +11,7 @@ public class RestAreaManager : MonoBehaviour
     [Header("生成位置調整")]
     public Vector3 restAreaSpawnPos = Vector3.zero;
     [Tooltip("プレイヤーの初期位置（円卓の手前）")]
-    public Vector3 playerSpawnPos = new Vector3(0, 0.1f, -5.0f);
+    public Vector3 playerSpawnPos = new Vector3(0, 1.5f, -5.0f);
 
     [Header("インタラクト設定")]
     [Tooltip("円卓に近づいて調べられる距離")]

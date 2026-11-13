@@ -218,7 +218,7 @@ MonoBehaviour:
     duration: 5
     chargeTime: 2
     chargeVfxPrefab: {fileID: 4944001563542533797, guid: 7f1818b5753c6bd499c58455fa00e5e5, type: 3}
-    firingPoint: {fileID: 0}
+    firingPoint: {fileID: 5052889801690882290}
   eclipseMeteor:
     damage: 150
     chargeTime: 3
@@ -243,9 +243,9 @@ MonoBehaviour:
     enableLaserStraight: 1
     laserStraightWeight: 10
     enableLaserSweep360Charge: 1
-    laserSweep360ChargeWeight: 5
+    laserSweep360ChargeWeight: 10
     enableLaserSweep90: 1
-    laserSweep90Weight: 5
+    laserSweep90Weight: 20
     enableEclipseMeteor: 1
     eclipseMeteorWeight: 5
   attackInterval: 2
@@ -381,10 +381,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 1
-  m_Height: 1
+  m_Radius: 0.65
+  m_Height: 4
   m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0.5}
+  m_Center: {x: 0, y: 2, z: 0}
 --- !u!1001 &2474698926626043599
 PrefabInstance:
   m_ObjectHideFlags: 0
