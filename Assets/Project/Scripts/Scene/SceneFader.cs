@@ -15,7 +15,6 @@ public class SceneFader : MonoBehaviour
 
     void Awake()
     {
-        // シーンをまたいで1つだけ常駐させる（シングルトン）
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -25,6 +24,7 @@ public class SceneFader : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         CreateFadeCanvas();
+        SetAlpha(1f); // 起動瞬間から真っ黒にしておく
     }
 
     void OnEnable()
@@ -37,23 +37,31 @@ public class SceneFader : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    // どのシーンが開かれた瞬間も、真っ暗な状態から自動でフェードインする
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (fadeImage != null)
         {
+            StopAllCoroutines();
+            SetAlpha(1f); // シーンが切り替わった瞬間、描画前に必ず真っ黒を保証する
             StartCoroutine(FadeIn());
         }
     }
 
-    // 外部（休憩所のボス選択ボタンや死亡時など）から暗転付きでシーン遷移するメソッド
     public void FadeToScene(string sceneName)
     {
         if (isFading) return;
+        StopAllCoroutines();
         StartCoroutine(FadeOutAndLoad(sceneName));
     }
 
-    // コードだけで最前面の真っ黒なフェード用Canvasを自動生成する（UIの配置ミス防止）
+    private void SetAlpha(float alpha)
+    {
+        if (fadeImage == null) return;
+        Color c = Color.black;
+        c.a = alpha;
+        fadeImage.color = c;
+    }
+
     private void CreateFadeCanvas()
     {
         GameObject canvasObj = new GameObject("GlobalFadeCanvas");
@@ -61,7 +69,7 @@ public class SceneFader : MonoBehaviour
 
         Canvas canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 999; // どのUIよりも必ず一番手前に表示する
+        canvas.sortingOrder = 999;
 
         canvasObj.AddComponent<CanvasScaler>();
 
@@ -83,22 +91,20 @@ public class SceneFader : MonoBehaviour
     {
         isFading = true;
         fadeImage.raycastTarget = true;
+        SetAlpha(1f);
 
-        Color c = Color.black;
-        c.a = 1f;
-        fadeImage.color = c;
+        // シーン初期化が落ち着くまで1フレーム真っ黒のまま待つ
+        yield return null;
 
         float timer = 0f;
         while (timer < fadeDuration)
         {
-            timer += Time.unscaledDeltaTime; // ポーズ中(timeScale=0)でも止まらず動く
-            c.a = Mathf.Lerp(1f, 0f, timer / fadeDuration);
-            fadeImage.color = c;
+            timer += Time.unscaledDeltaTime;
+            SetAlpha(Mathf.Lerp(1f, 0f, timer / fadeDuration));
             yield return null;
         }
 
-        c.a = 0f;
-        fadeImage.color = c;
+        SetAlpha(0f);
         fadeImage.raycastTarget = false;
         isFading = false;
     }
@@ -108,22 +114,16 @@ public class SceneFader : MonoBehaviour
         isFading = true;
         fadeImage.raycastTarget = true;
 
-        Color c = Color.black;
-        c.a = 0f;
-        fadeImage.color = c;
-
         float timer = 0f;
         while (timer < fadeDuration)
         {
             timer += Time.unscaledDeltaTime;
-            c.a = Mathf.Lerp(0f, 1f, timer / fadeDuration);
-            fadeImage.color = c;
+            SetAlpha(Mathf.Lerp(0f, 1f, timer / fadeDuration));
             yield return null;
         }
 
-        c.a = 1f;
-        fadeImage.color = c;
-        Time.timeScale = 1f; // 念のため時間停止を解除してから遷移
+        SetAlpha(1f);
+        Time.timeScale = 1f;
         SceneManager.LoadScene(sceneName);
     }
 }

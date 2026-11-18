@@ -23,6 +23,10 @@ public class StageManager : MonoBehaviour
     public Vector3 playerPosition = Vector3.zero;       // ★ (0, 0, 0) に統一
     public Vector3 bossPosition = new Vector3(0, 0, 10f); // ★ Y=0 に統一（Z軸のみ距離を保つ）
 
+    [Header("バトル開始演出設定")]
+    [Tooltip("暗転が明けてからボスが動き出すまでの待機時間（秒）")]
+    public float battleStartDelay = 2.0f;
+
     private GameObject currentStageInstance;
     private GameObject currentBossInstance;
     private GameObject currentPlayerInstance;
@@ -108,8 +112,6 @@ public class StageManager : MonoBehaviour
                 Cursor.visible = true;
             }
         }
-
-        // ★ 起動時はステージ・プレイヤーを生成せず、ボタン選択待ちにする（落下事故防止）
     }
 
     void SpawnPlayer(Slider hpSlider, Slider stSlider, TextMeshProUGUI estText)
@@ -128,20 +130,18 @@ public class StageManager : MonoBehaviour
                 playerCtrl.estusText = estText;
             }
 
-            // ★ カメラターゲットのセット ＋ 敵の方向を向かせるリセットを実行
             if (Camera.main != null)
             {
                 ThirdPersonCamera cam = Camera.main.GetComponent<ThirdPersonCamera>();
                 if (cam != null)
                 {
                     cam.target = currentPlayerInstance.transform;
-                    cam.InitCameraPosition(); // ★ カメラアングルとプレイヤーの向きを初期化
+                    cam.InitCameraPosition();
                 }
             }
         }
     }
 
-    // ★ プレイヤーの安全接地テレポート（レイキャストの誤検知を排除）
     private void TeleportPlayer(Vector3 targetPos)
     {
         if (currentPlayerInstance == null) return;
@@ -149,7 +149,6 @@ public class StageManager : MonoBehaviour
         CharacterController cc = currentPlayerInstance.GetComponent<CharacterController>();
         Rigidbody rb = currentPlayerInstance.GetComponent<Rigidbody>();
 
-        // 1. 位置更新を妨げるコンポーネントを一時オフ
         if (cc != null) cc.enabled = false;
 
         if (rb != null)
@@ -158,13 +157,11 @@ public class StageManager : MonoBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        // 2. 指定された座標（+0.2f 浮かせた高さ）に配置
         Vector3 finalPos = targetPos;
         finalPos.y += 0.2f;
 
         currentPlayerInstance.transform.position = finalPos;
 
-        // 3. コンポーネントを再有効化
         if (cc != null) cc.enabled = true;
     }
 
@@ -172,7 +169,6 @@ public class StageManager : MonoBehaviour
     {
         if (isStageActive && currentBossInstance == null)
         {
-            // ボスオブジェクトが破棄（Destroy）されたことを検知して発火
             OnBossDefeated();
         }
     }
@@ -187,8 +183,6 @@ public class StageManager : MonoBehaviour
         }
 
         Debug.Log("ボス撃破！余韻を残して休息エリアを表示します。");
-
-        // ★ 撃破後、少しの間（2.5秒）勝利の余韻を持たせてから休息エリアに切り替える
         StartCoroutine(TransitionToRestAreaRoutine());
     }
 
@@ -208,10 +202,9 @@ public class StageManager : MonoBehaviour
         if (restAreaPrefab != null)
         {
             currentStageInstance = Instantiate(restAreaPrefab, stagePosition, Quaternion.identity);
-            Physics.SyncTransforms(); // 地形物理の即時更新
+            Physics.SyncTransforms();
         }
 
-        // 休息エリア切替時はプレイヤー生成＆テレポート＆回復を行ってUIを表示
         SpawnPlayer(healthSlider, staminaSlider, estusText);
         TeleportPlayer(playerPosition);
         RestAndHeal();
@@ -224,7 +217,7 @@ public class StageManager : MonoBehaviour
         }
     }
 
-    // ★ ボス選択＆アリーナ生成（ボタン押下時に一括安全生成）
+    // ★ ボス選択＆アリーナ生成（開幕ディレイ付き）
     public void SelectAndStartBoss(int bossIndex)
     {
         if (bossIndex < 0 || bossIndex >= bossPrefabs.Length) return;
@@ -257,7 +250,7 @@ public class StageManager : MonoBehaviour
         if (selectedArenaPrefab != null)
         {
             currentStageInstance = Instantiate(selectedArenaPrefab, stagePosition, Quaternion.identity);
-            Physics.SyncTransforms(); // ★ 生成したアリーナの物理コライダーを即時同期
+            Physics.SyncTransforms();
         }
 
         // 2. 床が固定されてからプレイヤーを生成＆安全配置
@@ -269,7 +262,6 @@ public class StageManager : MonoBehaviour
         {
             currentBossInstance = Instantiate(bossPrefabs[bossIndex], bossPosition, Quaternion.identity);
 
-            // コンポーネントの一時停止（位置ずれ防止）
             CharacterController cc = currentBossInstance.GetComponent<CharacterController>();
             UnityEngine.AI.NavMeshAgent agent = currentBossInstance.GetComponent<UnityEngine.AI.NavMeshAgent>();
             Collider bossCol = currentBossInstance.GetComponent<Collider>();
@@ -292,6 +284,17 @@ public class StageManager : MonoBehaviour
 
             currentBossInstance.transform.position = spawnPos;
 
+            // プレイヤーの方を静かに向かせて構えさせる
+            if (currentPlayerInstance != null)
+            {
+                Vector3 lookDir = currentPlayerInstance.transform.position - spawnPos;
+                lookDir.y = 0f;
+                if (lookDir.sqrMagnitude > 0.01f)
+                {
+                    currentBossInstance.transform.rotation = Quaternion.LookRotation(lookDir);
+                }
+            }
+
             if (bossCol != null) bossCol.enabled = true;
             if (cc != null) cc.enabled = true;
 
@@ -301,11 +304,11 @@ public class StageManager : MonoBehaviour
                 agent.enabled = true;
             }
 
-            // UI設定
+            // UI設定（開幕ディレイが終わるまで一旦非表示にしておく）
             BossHealth bossHealth = currentBossInstance.GetComponent<BossHealth>();
             if (bossHealth != null && bossHPSlider != null)
             {
-                bossHPSlider.gameObject.SetActive(true);
+                bossHPSlider.gameObject.SetActive(false);
                 bossHealth.bossHPSlider = bossHPSlider;
             }
 
@@ -316,25 +319,76 @@ public class StageManager : MonoBehaviour
                 if (cam != null)
                 {
                     cam.target = currentPlayerInstance.transform;
-                    cam.InitCameraPosition(); // 敵を検出して自動ロックオン＆正対
+                    cam.InitCameraPosition();
                 }
             }
+
+            // ★ 開幕ディレイ演出を開始
+            StartCoroutine(BattleStartDelayRoutine(currentBossInstance));
         }
 
         isStageActive = true;
+    }
+
+    // ★ 開幕の「間」を作り、待機後にボスAIとHPバーを起動するコルーチン
+    private IEnumerator BattleStartDelayRoutine(GameObject bossObj)
+    {
+        if (bossObj == null) yield break;
+
+        // ボスについている行動系スクリプトを一時停止（BossHealth以外を停止）
+        MonoBehaviour[] allScripts = bossObj.GetComponents<MonoBehaviour>();
+        List<MonoBehaviour> pausedScripts = new List<MonoBehaviour>();
+
+        foreach (var script in allScripts)
+        {
+            if (script != null && script.enabled && !(script is BossHealth))
+            {
+                script.enabled = false;
+                pausedScripts.Add(script);
+            }
+        }
+
+        UnityEngine.AI.NavMeshAgent agent = bossObj.GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+        }
+
+        // 指定秒数（デフォルト2秒）だけ対峙する「間」を作る
+        yield return new WaitForSeconds(battleStartDelay);
+
+        // ボスがまだ生存していれば行動開始＆HPバー表示！
+        if (bossObj != null)
+        {
+            if (bossHPSlider != null)
+            {
+                bossHPSlider.gameObject.SetActive(true);
+            }
+
+            if (agent != null && agent.isOnNavMesh)
+            {
+                agent.isStopped = false;
+            }
+
+            foreach (var script in pausedScripts)
+            {
+                if (script != null)
+                {
+                    script.enabled = true;
+                }
+            }
+        }
     }
 
     public void RestAndHeal()
     {
         if (playerCtrl != null)
         {
-            // HP・FP（マナ）と両方のポーションを全回復
             playerCtrl.currentHealth = playerCtrl.maxHealth;
             playerCtrl.currentFp = playerCtrl.maxFp;
             playerCtrl.currentHpEstusCount = playerCtrl.hpEstusCount;
             playerCtrl.currentFpEstusCount = playerCtrl.fpEstusCount;
 
-            // UI表示更新
             playerCtrl.TakeDamage(0);
 
             Debug.Log("休息完了：HP・FP・ポーションが全回復しました！");
@@ -372,7 +426,6 @@ public class StageManager : MonoBehaviour
             gameOverText.gameObject.SetActive(false);
         }
 
-        // 死亡時は休息エリアへ復帰
         ShowRestArea();
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -20,6 +21,10 @@ public class BattleManager : MonoBehaviour
     [Header("生成位置")]
     public Vector3 playerSpawnPos = Vector3.zero;
     public Vector3 bossPosition = new Vector3(0, 0, 10f);
+
+    [Header("バトル開始演出設定")]
+    [Tooltip("暗転明けからボスが動き出すまでの待機時間（秒）")]
+    public float battleStartDelay = 2.0f;
 
     private GameObject currentBoss;
     private GameObject currentPlayer;
@@ -118,15 +123,46 @@ public class BattleManager : MonoBehaviour
             }
         }
 
-        // 4. ボス生成
+        // 4. ボス生成（この瞬間は行動を止めておく）
+        List<MonoBehaviour> pausedScripts = new List<MonoBehaviour>();
+        UnityEngine.AI.NavMeshAgent bossAgent = null;
+
         if (bossPrefabs != null && bossIndex < bossPrefabs.Length && bossPrefabs[bossIndex] != null)
         {
             currentBoss = Instantiate(bossPrefabs[bossIndex], bossPosition, Quaternion.identity);
 
+            // プレイヤーの方向を静かに向かせて構えさせる
+            if (currentPlayer != null)
+            {
+                Vector3 lookDir = currentPlayer.transform.position - currentBoss.transform.position;
+                lookDir.y = 0f;
+                if (lookDir.sqrMagnitude > 0.01f)
+                {
+                    currentBoss.transform.rotation = Quaternion.LookRotation(lookDir);
+                }
+            }
+
+            // ボスのAI・攻撃スクリプトを一時停止（BossHealth以外）
+            foreach (var script in currentBoss.GetComponents<MonoBehaviour>())
+            {
+                if (script != null && script.enabled && !(script is BossHealth))
+                {
+                    script.enabled = false;
+                    pausedScripts.Add(script);
+                }
+            }
+
+            bossAgent = currentBoss.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (bossAgent != null && bossAgent.isOnNavMesh)
+            {
+                bossAgent.isStopped = true;
+            }
+
+            // ボスHPバーは戦闘開始の瞬間まで隠しておく
             BossHealth bossHealth = currentBoss.GetComponent<BossHealth>();
             if (bossHealth != null && bossHPSlider != null)
             {
-                bossHPSlider.gameObject.SetActive(true);
+                bossHPSlider.gameObject.SetActive(false);
                 bossHealth.bossHPSlider = bossHPSlider;
             }
         }
@@ -144,9 +180,32 @@ public class BattleManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // 少しだけ待ってからボス判定を開始させる（誤作動防止）
-        yield return new WaitForSeconds(0.5f);
         isSetupComplete = true;
+
+        // 6. 暗転明け＋対峙の「間」を待つ
+        yield return new WaitForSeconds(battleStartDelay);
+
+        // 7. ボスがまだ生存していればHPバーを表示して戦闘開始！
+        if (currentBoss != null && !isBattleEnd)
+        {
+            if (bossHPSlider != null)
+            {
+                bossHPSlider.gameObject.SetActive(true);
+            }
+
+            if (bossAgent != null && bossAgent.isOnNavMesh)
+            {
+                bossAgent.isStopped = false;
+            }
+
+            foreach (var script in pausedScripts)
+            {
+                if (script != null)
+                {
+                    script.enabled = true;
+                }
+            }
+        }
     }
 
     void Update()

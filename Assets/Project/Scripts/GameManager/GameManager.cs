@@ -12,18 +12,31 @@ public class GameManager : MonoBehaviour
     public static void LoadBattleScene(int bossIndex)
     {
         SelectedBossIndex = bossIndex;
-        SceneManager.LoadScene("BattleScene");
+        ChangeScene("BattleScene");
     }
 
     // 拠点（休憩所）に戻る時に呼ばれる
     public static void LoadRestAreaScene()
     {
-        SceneManager.LoadScene("RestAreaScene");
+        ChangeScene("RestAreaScene");
     }
 
     // タイトル画面に戻る時に呼ばれる
     public static void LoadTitleScene()
     {
-        SceneManager.LoadScene("TitleScene");
+        ChangeScene("TitleScene");
+    }
+
+    // 共通のフェード付きシーン遷移処理
+    private static void ChangeScene(string sceneName)
+    {
+        if (SceneFader.Instance != null)
+        {
+            SceneFader.Instance.FadeToScene(sceneName);
+        }
+        else
+        {
+            SceneManager.LoadScene(sceneName);
+        }
     }
 }
