@@ -17,17 +17,25 @@ public class BattleManager : MonoBehaviour
     public GameObject playerPrefab;
     [Tooltip("UIキャンバスのプレハブ（Canvas）")]
     public GameObject uiCanvasPrefab;
+    [Tooltip("ボス部屋の霧の壁プレハブ（BossFogEntry付き）")]
+    public GameObject fogWallPrefab;
 
-    [Header("生成位置")]
-    public Vector3 playerSpawnPos = Vector3.zero;
-    public Vector3 bossPosition = new Vector3(0, 0, 10f);
+    [Header("生成位置（BossEntranceRoomがない場合のデフォルト）")]
+    public Vector3 playerSpawnPos = new Vector3(0, 2f, -16f);
+    public Vector3 fogWallPosition = new Vector3(0, 0, -10f);
+    public Vector3 bossPosition = new Vector3(0, 0, 6f);
 
     [Header("バトル開始演出設定")]
-    [Tooltip("暗転明けからボスが動き出すまでの待機時間（秒）")]
+    [Tooltip("霧がない場合の自動開始待機時間（秒）")]
     public float battleStartDelay = 2.0f;
 
     private GameObject currentBoss;
     private GameObject currentPlayer;
+
+    // ボス一時停止用リスト
+    private List<MonoBehaviour> pausedBossScripts = new List<MonoBehaviour>();
+    private UnityEngine.AI.NavMeshAgent bossAgent;
+    private bool isBossStarted = false;
 
     // UI参照用
     private Slider healthSlider;
@@ -37,7 +45,7 @@ public class BattleManager : MonoBehaviour
     private TextMeshProUGUI gameOverText;
 
     private bool isBattleEnd = false;
-    private bool isSetupComplete = false; // ★ 初期化完了フラグ
+    private bool isSetupComplete = false;
 
     void Start()
     {
@@ -83,7 +91,8 @@ public class BattleManager : MonoBehaviour
             }
         }
 
-        // 2. アリーナ（床）生成
+        // 2. アリーナ生成
+        GameObject spawnedArena = null;
         GameObject selectedArena = null;
         if (bossSpecificArenas != null && bossIndex < bossSpecificArenas.Length && bossSpecificArenas[bossIndex] != null)
         {
@@ -97,16 +106,60 @@ public class BattleManager : MonoBehaviour
 
         if (selectedArena != null)
         {
-            Instantiate(selectedArena, Vector3.zero, Quaternion.identity);
+            spawnedArena = Instantiate(selectedArena, Vector3.zero, Quaternion.identity);
         }
 
         Physics.SyncTransforms();
-        yield return new WaitForFixedUpdate(); // 物理同期完了を確実に待つ
+        yield return new WaitForFixedUpdate();
 
-        // 3. プレイヤー生成（位置を地面に密着）
+        // 3. ステージ内の "BossEntranceRoom" を自動検索して、プレイヤー位置と霧の位置を自動計算！
+        Vector3 finalPlayerSpawnPos = playerSpawnPos;
+        Vector3 finalFogWallPos = fogWallPosition;
+        Quaternion finalFogWallRot = Quaternion.identity;
+
+        if (spawnedArena != null)
+        {
+            Transform entrance = FindChildByNameRecursive(spawnedArena.transform, "BossEntranceRoom");
+            if (entrance != null)
+            {
+                // エントランス全体の当たり判定（Bounds）を取得して出口と中心を割り出す
+                Collider[] cols = entrance.GetComponentsInChildren<Collider>();
+                if (cols.Length > 0)
+                {
+                    Bounds bounds = cols[0].bounds;
+                    for (int i = 1; i < cols.Length; i++)
+                    {
+                        bounds.Encapsulate(cols[i].bounds);
+                    }
+
+                    // プレイヤーはエントランスの中央付近にスポーン
+                    finalPlayerSpawnPos = new Vector3(
+                        bounds.center.x,
+                        bounds.min.y + 2.0f,
+                        bounds.center.z - (bounds.size.z * 0.1f)
+                    );
+
+                    // 霧の壁はエントランスの前方端（出口、max.z）に自動配置
+                    finalFogWallPos = new Vector3(
+                        bounds.center.x,
+                        bounds.min.y,
+                        bounds.max.z
+                    );
+                }
+                else
+                {
+                    finalPlayerSpawnPos = entrance.position + new Vector3(0, 2f, 0);
+                    finalFogWallPos = entrance.position + entrance.forward * 4.5f;
+                }
+                finalFogWallRot = entrance.rotation;
+                fogWallPosition = finalFogWallPos;
+            }
+        }
+
+        // 4. プレイヤー生成
         if (playerPrefab != null)
         {
-            currentPlayer = Instantiate(playerPrefab, playerSpawnPos, Quaternion.identity);
+            currentPlayer = Instantiate(playerPrefab, finalPlayerSpawnPos, finalFogWallRot);
 
             PlayerController playerCtrl = currentPlayer.GetComponent<PlayerController>();
             if (playerCtrl != null)
@@ -123,15 +176,13 @@ public class BattleManager : MonoBehaviour
             }
         }
 
-        // 4. ボス生成（この瞬間は行動を止めておく）
-        List<MonoBehaviour> pausedScripts = new List<MonoBehaviour>();
-        UnityEngine.AI.NavMeshAgent bossAgent = null;
+        // 5. ボス生成（霧をくぐるまでは行動停止）
+        pausedBossScripts.Clear();
 
         if (bossPrefabs != null && bossIndex < bossPrefabs.Length && bossPrefabs[bossIndex] != null)
         {
             currentBoss = Instantiate(bossPrefabs[bossIndex], bossPosition, Quaternion.identity);
 
-            // プレイヤーの方向を静かに向かせて構えさせる
             if (currentPlayer != null)
             {
                 Vector3 lookDir = currentPlayer.transform.position - currentBoss.transform.position;
@@ -142,13 +193,12 @@ public class BattleManager : MonoBehaviour
                 }
             }
 
-            // ボスのAI・攻撃スクリプトを一時停止（BossHealth以外）
             foreach (var script in currentBoss.GetComponents<MonoBehaviour>())
             {
                 if (script != null && script.enabled && !(script is BossHealth))
                 {
                     script.enabled = false;
-                    pausedScripts.Add(script);
+                    pausedBossScripts.Add(script);
                 }
             }
 
@@ -158,7 +208,6 @@ public class BattleManager : MonoBehaviour
                 bossAgent.isStopped = true;
             }
 
-            // ボスHPバーは戦闘開始の瞬間まで隠しておく
             BossHealth bossHealth = currentBoss.GetComponent<BossHealth>();
             if (bossHealth != null && bossHPSlider != null)
             {
@@ -167,7 +216,20 @@ public class BattleManager : MonoBehaviour
             }
         }
 
-        // 5. カメラ初期化
+        // 6. 霧の壁をエントランスの出口に自動生成して連動
+        bool hasFogWall = false;
+        if (fogWallPrefab != null)
+        {
+            GameObject fogObj = Instantiate(fogWallPrefab, finalFogWallPos, finalFogWallRot);
+            BossFogEntry fogEntry = fogObj.GetComponent<BossFogEntry>();
+            if (fogEntry != null)
+            {
+                fogEntry.Initialize(StartBossBattle);
+                hasFogWall = true;
+            }
+        }
+
+        // 7. カメラ初期化
         if (Camera.main != null)
         {
             ThirdPersonCamera cam = Camera.main.GetComponent<ThirdPersonCamera>();
@@ -179,14 +241,33 @@ public class BattleManager : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-
         isSetupComplete = true;
 
-        // 6. 暗転明け＋対峙の「間」を待つ
-        yield return new WaitForSeconds(battleStartDelay);
+        if (!hasFogWall)
+        {
+            yield return new WaitForSeconds(battleStartDelay);
+            StartBossBattle();
+        }
+    }
 
-        // 7. ボスがまだ生存していればHPバーを表示して戦闘開始！
-        if (currentBoss != null && !isBattleEnd)
+    // 名前（前方一致）で子オブジェクトを再帰検索するヘルパー
+    private Transform FindChildByNameRecursive(Transform parent, string targetName)
+    {
+        foreach (Transform child in parent)
+        {
+            if (child.name.StartsWith(targetName)) return child;
+            Transform found = FindChildByNameRecursive(child, targetName);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    public void StartBossBattle()
+    {
+        if (isBossStarted || isBattleEnd) return;
+        isBossStarted = true;
+
+        if (currentBoss != null)
         {
             if (bossHPSlider != null)
             {
@@ -198,7 +279,7 @@ public class BattleManager : MonoBehaviour
                 bossAgent.isStopped = false;
             }
 
-            foreach (var script in pausedScripts)
+            foreach (var script in pausedBossScripts)
             {
                 if (script != null)
                 {
@@ -212,7 +293,15 @@ public class BattleManager : MonoBehaviour
     {
         if (isBattleEnd || !isSetupComplete) return;
 
-        // ボスが正常に生成された後、死亡・破壊された場合のみ撃破処理を実行
+        // 霧の壁を超えたら確実に戦闘開始
+        //if (!isBossStarted && fogWallPrefab != null && currentPlayer != null)
+        //{
+        //    if (currentPlayer.transform.position.z > fogWallPosition.z + 0.5f)
+        //    {
+        //        StartBossBattle();
+        //    }
+        //}
+
         if (currentBoss == null)
         {
             OnBossDefeated();

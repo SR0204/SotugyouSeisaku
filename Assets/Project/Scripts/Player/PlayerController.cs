@@ -757,7 +757,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void TakeDamage(float damage)
+    public void TakeDamage(float damage, bool shakeCamera = true)
     {
         // ★ 無敵中、死亡中、またはダウン〜起き上がり完了までは一切ダメージを受けない（ハメ防止）
         if (isDead || isInvincible || isKnockedDown) return;
@@ -766,8 +766,8 @@ public class PlayerController : MonoBehaviour
         currentHealth = Mathf.Max(currentHealth, 0f);
         UpdateHealthUI();
 
-        // ★ 追加：被弾時のカメラシェイク（大ダメージ時は強めに揺らす）
-        if (ThirdPersonCamera.Instance != null)
+        // ★ 追加：被弾時のカメラシェイク（溶岩などの持続ダメージ時は揺らさない）
+        if (shakeCamera && ThirdPersonCamera.Instance != null)
         {
             if (damage >= knockdownDamageThreshold)
             {

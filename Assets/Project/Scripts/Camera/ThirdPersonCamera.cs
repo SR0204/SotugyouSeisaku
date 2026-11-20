@@ -43,6 +43,14 @@ public class ThirdPersonCamera : MonoBehaviour
     [Tooltip("ロックオン時のカメラの高さ補正")]
     public float lockOnCameraHeight = 2.5f;
 
+    [Header("★ 壁貫通防止設定")]
+    [Tooltip("壁・床として判定するレイヤー（デフォルトは全レイヤー対象、Triggerは自動無視）")]
+    public LayerMask collisionLayers = ~0;
+    [Tooltip("カメラの当たり判定半径（m）")]
+    public float cameraRadius = 0.25f;
+    [Tooltip("壁に押された時にプレイヤーへ近づける最小距離（m）")]
+    public float minCollisionDistance = 0.7f;
+
     private float x = 0.0f;
     private float y = 15.0f; // ★ 初期角度を15度に明示設定
     private Camera cam;
@@ -105,10 +113,11 @@ public class ThirdPersonCamera : MonoBehaviour
 
         y = 15.0f; // ★ 15度（自然な見下ろし角度）に固定
 
-        // 2. 初回フレームの位置計算
+        // 2. 初回フレームの位置計算（壁貫通防止も適用）
         Quaternion rotation = Quaternion.Euler(y, x, 0);
         Vector3 targetPosition = target.position + Vector3.up * height;
-        transform.position = targetPosition - (rotation * Vector3.forward * distance);
+        Vector3 desiredPos = targetPosition - (rotation * Vector3.forward * distance);
+        transform.position = ResolveCameraCollision(targetPosition, desiredPos);
         transform.rotation = rotation;
     }
 
@@ -174,9 +183,12 @@ public class ThirdPersonCamera : MonoBehaviour
                 Vector3 centerPoint = Vector3.Lerp(playerPos + Vector3.up * 1.2f, enemyPos + lockOnOffset, 0.4f);
 
                 Quaternion targetRotation = Quaternion.LookRotation(dirToEnemy);
+                Vector3 pivotPos = playerPos + Vector3.up * 1.5f;
                 Vector3 desiredCameraPos = playerPos - (targetRotation * Vector3.forward * targetCamDistance) + Vector3.up * lockOnCameraHeight;
 
-                transform.position = Vector3.Lerp(transform.position, desiredCameraPos, Time.deltaTime * 8f);
+                // ★ 壁がある場合は壁の手前までに補正してからスムーズ追従
+                Vector3 safeCameraPos = ResolveCameraCollision(pivotPos, desiredCameraPos);
+                transform.position = Vector3.Lerp(transform.position, safeCameraPos, Time.deltaTime * 8f);
                 transform.LookAt(centerPoint);
 
                 target.rotation = Quaternion.Slerp(target.rotation, targetRotation, Time.deltaTime * 10f);
@@ -197,9 +209,10 @@ public class ThirdPersonCamera : MonoBehaviour
 
             Vector3 smoothTargetPos = new Vector3(target.position.x, currentTargetY, target.position.z);
             Vector3 targetPosition = smoothTargetPos + Vector3.up * height;
-            Vector3 position = targetPosition - (rotation * Vector3.forward * distance);
+            Vector3 desiredPosition = targetPosition - (rotation * Vector3.forward * distance);
 
-            transform.position = position;
+            // ★ 壁・床にめり込まない位置へ補正
+            transform.position = ResolveCameraCollision(targetPosition, desiredPosition);
 
             // ★ LookAt で y の値を壊さないように制御
             if (isFallingFast)
@@ -222,6 +235,50 @@ public class ThirdPersonCamera : MonoBehaviour
             Vector3 shakeOffset = Random.insideUnitSphere * shakeMagnitude;
             transform.position += shakeOffset;
         }
+    }
+
+    private Vector3 ResolveCameraCollision(Vector3 pivotPos, Vector3 desiredCameraPos)
+    {
+        Vector3 dir = desiredCameraPos - pivotPos;
+        float maxDist = dir.magnitude;
+        if (maxDist <= 0.001f) return desiredCameraPos;
+
+        dir /= maxDist;
+
+        // プレイヤーや敵自身に当たった場合をスキップするため SphereCastAll を使用（Triggerは無視）
+        RaycastHit[] hits = Physics.SphereCastAll(pivotPos, cameraRadius, dir, maxDist, collisionLayers, QueryTriggerInteraction.Ignore);
+
+        float closestDist = maxDist;
+        bool hasHitWall = false;
+
+        foreach (var hit in hits)
+        {
+            if (hit.collider == null) continue;
+
+            // プレイヤー自身・その子要素は無視する
+            if (target != null && (hit.collider.transform == target || hit.collider.transform.IsChildOf(target)))
+                continue;
+            if (hit.collider.CompareTag("Player"))
+                continue;
+
+            // 敵キャラ（ボスや雑魚敵）のコライダーは無視する（未定義タグエラー防止のためコンポーネントで判定）
+            if (hit.collider.GetComponentInParent<BossHealth>() != null || hit.collider.GetComponentInParent<BossMinionAI>() != null)
+                continue;
+
+            if (hit.distance < closestDist)
+            {
+                closestDist = hit.distance;
+                hasHitWall = true;
+            }
+        }
+
+        if (hasHitWall)
+        {
+            float safeDist = Mathf.Max(minCollisionDistance, closestDist - 0.05f);
+            return pivotPos + dir * safeDist;
+        }
+
+        return desiredCameraPos;
     }
 
     /// <summary>

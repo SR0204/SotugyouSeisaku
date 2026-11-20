@@ -25,7 +25,7 @@ public class DamageFloor : MonoBehaviour
             PlayerController player = other.GetComponent<PlayerController>();
             if (player != null)
             {
-                player.TakeDamage(damagePerSecond * Time.deltaTime);
+                player.TakeDamage(damagePerSecond * Time.deltaTime, false);
             }
         }
     }
