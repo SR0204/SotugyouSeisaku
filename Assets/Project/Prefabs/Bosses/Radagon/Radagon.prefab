@@ -194,6 +194,31 @@ MonoBehaviour:
     damage: 25
     heavyDamage: 45
     attackRange: 3.5
+  comboMelee:
+    damagePerHit: 20
+    hitCount: 3
+    hitInterval: 0.45
+    stepForwardDistance: 1.2
+  dashAttack:
+    damage: 35
+    minRange: 6
+    maxRange: 18
+    chargeTime: 0.7
+    dashSpeed: 24
+    dashDuration: 0.55
+    hitRadius: 1.6
+    dashVfxPrefab: {fileID: 0}
+    showTelegraphLine: 1
+    lineWidth: 1.6
+    aimingLineColor: {r: 1, g: 0.2, b: 0.1, a: 0.35}
+    lockedLineColor: {r: 1, g: 0.05, b: 0.05, a: 0.85}
+  summonAttack:
+    minionPrefab: {fileID: 2951477989358044842, guid: f7f00759b6cb5544b823f33f45050f04, type: 3}
+    summonCount: 2
+    maxAliveMinions: 4
+    spawnRadius: 3.5
+    castTime: 1.2
+    summonVfxPrefab: {fileID: 0}
   rangedAttack:
     damage: 20
     minRange: 4
@@ -232,6 +257,13 @@ MonoBehaviour:
     meleeNormalWeight: 20
     enableMeleeHeavy: 1
     meleeHeavyWeight: 10
+    enableMeleeCombo: 1
+    meleeComboWeight: 15
+    enableDashAttack: 1
+    dashAttackWeight: 15
+    enableSummonMinions: 1
+    summonMinionsWeight: 15
+    summonOnlyInPhase2: 0
     enableRangedSingle: 1
     rangedSingleWeight: 10
     enableRangedRapid: 1

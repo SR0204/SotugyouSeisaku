@@ -78,6 +78,15 @@ public class BossHealth : MonoBehaviour
             bossHPSlider.gameObject.SetActive(false);
         }
 
+        // ★ 追加：「GREAT ENEMY FELLED」の帯演出を表示
+        if (ResultBannerUI.Instance != null)
+        {
+            ResultBannerUI.Instance.ShowVictory("GREAT ENEMY FELLED");
+        }
+
+        // ★ 追加：撃破瞬間のスローモーション演出
+        StartCoroutine(VictorySlowMotionRoutine());
+
         // 2. AI思考と移動ナビゲーションを完全停止
         if (bossAI != null)
         {
@@ -100,5 +109,13 @@ public class BossHealth : MonoBehaviour
 
         // 4. アニメーションが十分流れた数秒後にオブジェクトを破棄
         Destroy(gameObject, destroyDelay);
+    }
+
+    // ★ 追加：撃破した瞬間に一瞬スローになる演出コルーチン
+    private IEnumerator VictorySlowMotionRoutine()
+    {
+        Time.timeScale = 0.35f;
+        yield return new WaitForSecondsRealtime(0.7f);
+        Time.timeScale = 1.0f;
     }
 }

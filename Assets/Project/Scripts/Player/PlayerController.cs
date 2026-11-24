@@ -846,6 +846,12 @@ public class PlayerController : MonoBehaviour
 
         Debug.Log("プレイヤー死亡… YOU DIED");
 
+        // ★ 追加：「YOU DIED」の帯演出を表示
+        if (ResultBannerUI.Instance != null)
+        {
+            ResultBannerUI.Instance.ShowDeath("YOU DIED");
+        }
+
         // 1. 進行中の全コルーチン（攻撃・ポーション・ローリング等）を強制停止
         StopAllCoroutines();
 
